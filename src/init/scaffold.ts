@@ -7,7 +7,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import {
-  FOLDER_DOCS, TIER_FOLDERS, renderReadme, isGenerated,
+  FOLDER_DOCS, TIER_FOLDERS, renderReadme, renderDocsReadme, isGenerated,
   docArchitecture, architectureMd, githubWorkflow,
 } from "./content.ts";
 
@@ -24,6 +24,7 @@ export interface SyncOptions { check: boolean; }
 function planInit(opts: InitOptions): Planned[] {
   const folders = TIER_FOLDERS[opts.tier] ?? TIER_FOLDERS[1]!;
   const plan: Planned[] = folders.map((f) => ({ rel: `docs/${f}/README.md`, content: renderReadme(f), kind: "generated" as const }));
+  plan.push({ rel: "docs/README.md", content: renderDocsReadme(folders), kind: "generated" });
   plan.push({ rel: "docs/architecture.md", content: architectureMd(), kind: "scaffold" });
   plan.push({ rel: "docs/conventions/doc-architecture.md", content: docArchitecture(opts.tier, opts.decider), kind: "scaffold" });
   plan.push({ rel: "docs/specs/.id-counter", content: "0000", kind: "scaffold" });
@@ -33,10 +34,12 @@ function planInit(opts: InitOptions): Planned[] {
 
 function planSync(root: string): Planned[] {
   const plan: Planned[] = [];
-  for (const f of Object.keys(FOLDER_DOCS)) {
-    if (existsSync(join(root, "docs", f))) {
-      plan.push({ rel: `docs/${f}/README.md`, content: renderReadme(f), kind: "generated" });
-    }
+  const present = Object.keys(FOLDER_DOCS).filter((f) => existsSync(join(root, "docs", f)));
+  if (existsSync(join(root, "docs"))) {
+    plan.push({ rel: "docs/README.md", content: renderDocsReadme(present), kind: "generated" });
+  }
+  for (const f of present) {
+    plan.push({ rel: `docs/${f}/README.md`, content: renderReadme(f), kind: "generated" });
   }
   if (existsSync(join(root, ".github/workflows/specline.yml"))) {
     plan.push({ rel: ".github/workflows/specline.yml", content: githubWorkflow(), kind: "generated" });

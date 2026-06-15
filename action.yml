@@ -1,0 +1,28 @@
+name: "Specline doctor"
+description: "Validate a Specline repo's docs/ structure on pull requests (gate mode). Blocks the merge on structural errors; posts findings as annotations."
+branding:
+  icon: check-circle
+  color: red
+inputs:
+  path:
+    description: "Path to the repo root to validate (contains docs/)."
+    required: false
+    default: "."
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+    - name: Run doctor (gate mode)
+      shell: bash
+      run: |
+        base="${GITHUB_BASE_REF:-main}"
+        git fetch --no-tags --depth=1 origin "$base" 2>/dev/null || true
+        changed="$(git diff --name-only "origin/$base"...HEAD -- 'docs/**' 2>/dev/null | tr '\n' ' ')"
+        echo "Changed under docs/: ${changed:-<none>}"
+        node "$GITHUB_ACTION_PATH/src/action/main.ts" "${{ inputs.path }}" \
+          --mode gate \
+          --now "$(date -u +%Y-%m-%d)" \
+          --changed "$changed"

@@ -62,8 +62,10 @@ differ. The workflow file it runs is what `specline init` optionally generates
    carrying `rule_id`, `file`, `line`, `message`, and `fix_hint`, so the author
    self-corrects from the annotation alone — without opening the canon.
 
-6. **Pinned.** The action is version-pinned to a canon/tool version
-   (`speclinedev/specline-action@2.3` ↔ canon 2.3), like the CLI package.
+6. **Distribution.** A **composite action in the `cli` repo itself**
+   (`speclinedev/cli@<ver>`): GitHub checks the action's repo out alongside the
+   consumer's, so it runs the bundled doctor directly — no separate package and no
+   npm publish needed for CI. Version-pinned to the canon (`@v2.3` ↔ canon 2.3).
 
 ## Business rules
 
