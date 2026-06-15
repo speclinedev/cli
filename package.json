@@ -1,0 +1,18 @@
+{
+  "name": "@specline/doctor",
+  "version": "0.1.0",
+  "description": "Deterministic structural validator for Specline repos.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "specline": "./src/cli/index.ts"
+  },
+  "scripts": {
+    "specline": "node src/cli/index.ts",
+    "test": "node --test test/*.test.ts",
+    "build": "bun build src/cli/index.ts --compile --outfile dist/specline"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
