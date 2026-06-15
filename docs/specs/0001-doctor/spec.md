@@ -5,6 +5,7 @@ type: feature
 status: draft        # ratifiable — Q1/Q2 resolved, Q3/Q4 carry legal defaults; awaiting human ratification (B3)
 decider: jonathan
 blast_radius: high   # everything in the repo depends on doctor being correct
+loop_budget: 5       # escalate to a human after 5 build cycles without a green checkpoint
 created: 2026-06-11
 canon: 2.3.0-draft
 ---

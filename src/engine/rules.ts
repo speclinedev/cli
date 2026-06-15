@@ -29,6 +29,7 @@ export const REGISTRY: RuleMeta[] = [
   { rule_id: "ID-COUNTER-GAP", severity: "error", scope: "repo", tier: 1, downgradable: false },
   { rule_id: "GOAL-MISSING", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "ACCEPTANCE-NOT-RUNNABLE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  { rule_id: "LOOP-BUDGET-INVALID", severity: "warning", scope: "spec", tier: 1, downgradable: false },
 ];
 
 export const REGISTRY_BY_ID: Map<string, RuleMeta> = new Map(REGISTRY.map((r) => [r.rule_id, r]));
@@ -36,7 +37,7 @@ export const REGISTRY_BY_ID: Map<string, RuleMeta> = new Map(REGISTRY.map((r) =>
 const KNOWN_FRONTMATTER_KEYS = new Set([
   "id", "slug", "type", "status", "decider", "blast_radius", "target_model",
   "ratified_by", "ratified_at", "created", "canon", "shipped", "ttl_expires",
-  "acceptance_results", "deputy", "killed_reason",
+  "acceptance_results", "deputy", "killed_reason", "loop_budget",
 ]);
 
 const KNOWN_SECTIONS = new Set([
@@ -170,6 +171,20 @@ const enumValues: Rule = ({ repo }) => {
           message: `${key} "${v}" is not one of ${[...allowed].join("|")}`,
           fix_hint: `set ${key} to one of: ${[...allowed].join(", ")}` });
       }
+    }
+  }
+  return out;
+};
+
+const loopBudgetValid: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of [...repo.specs, ...repo.archive]) {
+    if (f.frontmatter === null || !f.frontmatter.ok) continue;
+    const v = fmString(f, "loop_budget");
+    if (v !== null && !/^[1-9]\d*$/.test(v)) {
+      out.push({ rule_id: "LOOP-BUDGET-INVALID", file: `${f.rel}/spec.md`, line: f.frontmatter.lineOf["loop_budget"] ?? 1, specDir: f.dirName,
+        message: `loop_budget "${v}" is not a positive integer`,
+        fix_hint: "loop_budget is the autonomy grant — a positive integer of build cycles before escalating to a human gate" });
     }
   }
   return out;
@@ -366,6 +381,7 @@ export const RULES: Rule[] = [
   ratifiedFields,
   statusSchema,
   enumValues,
+  loopBudgetValid,
   unknownFrontmatterKeys,
   unknownSections,
   goalMissing,

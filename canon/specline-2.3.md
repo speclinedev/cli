@@ -293,6 +293,7 @@ ratified_by: jonathan    # set by the ratifying human's commit
 ratified_at: 2026-06-11
 created: 2026-06-10
 ttl_expires: 2026-06-18  # set on entering building or blocked
+loop_budget: 5           # OPTIONAL (new in v2.3): autonomy grant — see Escalation
 ---
 ```
 
@@ -308,6 +309,18 @@ this is wrong. It is a ratification-time judgment, not a default, and it drives
 Routing (below): reviewer depth, implementer effort, and model tier. **`target_model`**
 optionally pins a capability tier; if absent, the orchestrator derives one from
 `blast_radius` and the context-budget proxy.
+
+**Escalation — `loop_budget` (new) and `ttl_expires` coexist.** A build escalates
+from autonomous back to a human gate at the **first** of two independent triggers,
+so they never conflict:
+- **`ttl_expires`** is the *time* trigger — wall-clock staleness (a build left open
+  too long; catches abandonment).
+- **`loop_budget`** is the *progress* trigger — the cap on autonomous build cycles
+  with no green-checkpoint advance (catches thrashing, which can exhaust the budget
+  long before TTL).
+`loop_budget` is the PO's autonomy grant, set at ratification like `blast_radius`.
+The orchestrator defines what a "cycle" is and enforces both; doctor only validates
+they are well-formed. Do not merge them — one measures time, the other progress.
 
 ### `spec.md` body
 
@@ -365,6 +378,17 @@ Doctor checks the **shape** (sections present and parseable), never the prose �
 content is judgment. *Last green checkpoint* and *Dead ends* are the load-bearing
 sections: they stop a fresh-context iteration from re-deriving history and
 re-walking abandoned paths.
+
+**Machine-parseable entries** *(new in v2.3)*. The two load-bearing sections carry a
+fixed *entry* convention so a fresh-context loop (or the orchestrator) reads the
+resume point and skips dead ends without interpreting prose:
+- **Last green checkpoint** — one entry: `<ref> — <what passes here>`, where `<ref>`
+  is a commit, tag, or check id (`none — <reason>` while still pre-green).
+- **Dead ends** — one entry per line: `<approach> — <why it failed>`.
+
+It stays **markdown** — one human-readable file, no second data format. The
+convention is enough for a tool to parse *and* a person to glance at; doctor checks
+the entry shape, never the prose.
 
 ### `open-questions.md`
 
