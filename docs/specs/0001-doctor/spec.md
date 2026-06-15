@@ -27,6 +27,12 @@ reviewable unit: *"doctor can validate structure and IDs and tell every
 consumer about it in one format."* Lifecycle-state enforcement and the other
 two adapters are deliberately deferred (see Out of scope).
 
+## Goal
+
+For a given repo state and `--now`, every consumer — CI, an agent, a human — gets
+the same machine-readable structural verdict and exit code, byte-identical across
+runs.
+
 ## Non-goals
 
 The most important section. `doctor` earns its trust by what it refuses to do.

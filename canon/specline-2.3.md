@@ -313,27 +313,35 @@ optionally pins a capability tier; if absent, the orchestrator derives one from
 
 1. **Intent** — the product outcome in plain language, and the appetite: what
    one-sitting scope this spec deliberately fits.
-2. **Non-goals** — explicit. The most valuable section for strong models: it is
+2. **Goal** *(new in v2.3)* — a single falsifiable sentence: the observable
+   outcome that means *done*. Intent is the *why* (for the human); the Goal is
+   the *target* (for the build loop) — the one statement an autonomous run
+   converges toward. If you can't state it falsifiably in one line, the feature
+   isn't shaped yet.
+3. **Non-goals** — explicit. The most valuable section for strong models: it is
    where over-building is fenced off.
-3. **Behavior** — observable, numbered, each verifiable from outside.
-4. **Business rules** — `Must` / `Should` / `May`.
-5. **Assumptions / external dependencies** *(new in v2.3)* — what this spec
+4. **Behavior** — observable, numbered, each verifiable from outside.
+5. **Business rules** — `Must` / `Should` / `May`.
+6. **Assumptions / external dependencies** *(new in v2.3)* — what this spec
    takes as given about systems it does not control (APIs, upstream services,
    data shapes), and what to do at a contradiction. Contradictions live at
    seams; naming them tells the agent where to **escalate fast** instead of
    cleverly hacking around a system it cannot change. Example (0012): *"the
    pricing API cannot quote discontinued SKUs — render the no-quote state; do
    not synthesize a price."*
-6. **Critical files** — pointers into existing code, not restatements of it.
-7. **Acceptance checks** — falsifiable, and **partitioned** *(new in v2.3)*:
+7. **Critical files** — pointers into existing code, not restatements of it.
+8. **Acceptance checks** — falsifiable, **partitioned**, and — for the
+   agent-loopable set — **executable** *(new in v2.3)*:
    - `agent-loopable` — executable by the implementer/verifier every iteration;
      this set **is the build loop's exit condition** and is executed in the
-     implementation PR (B5).
+     implementation PR (B5). Each **leads with a runnable command** (in
+     backticks) and its expected result, so the loop *runs* the check rather than
+     re-interpreting prose. *(e.g. `npm test -- trade-in` — exits 0.)*
    - `human-gate` — verified once by a person at the acceptance gate (taste,
-     product-fit, anything no check can falsify).
+     product-fit, anything no check can falsify); prose, not a command.
    An undifferentiated list hides the loop's stop condition and smuggles a human
    step into an autonomous run.
-8. **Out of scope / deferred** — with IDs if already allocated.
+9. **Out of scope / deferred** — with IDs if already allocated.
 
 Write intent and rules richly; write mechanics sparsely (B6). The builder reads
 code; the spec's job is everything code can't say, and over-specified mechanics

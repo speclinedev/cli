@@ -27,6 +27,8 @@ export const REGISTRY: RuleMeta[] = [
   { rule_id: "ARCHIVE-EDITED", severity: "error", scope: "repo", tier: 1, downgradable: false },
   { rule_id: "ID-DUPLICATE", severity: "error", scope: "repo", tier: 1, downgradable: false },
   { rule_id: "ID-COUNTER-GAP", severity: "error", scope: "repo", tier: 1, downgradable: false },
+  { rule_id: "GOAL-MISSING", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  { rule_id: "ACCEPTANCE-NOT-RUNNABLE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
 ];
 
 export const REGISTRY_BY_ID: Map<string, RuleMeta> = new Map(REGISTRY.map((r) => [r.rule_id, r]));
@@ -38,7 +40,7 @@ const KNOWN_FRONTMATTER_KEYS = new Set([
 ]);
 
 const KNOWN_SECTIONS = new Set([
-  "Intent", "Non-goals", "Non goals", "Behavior", "Business rules", "Critical files",
+  "Intent", "Goal", "Non-goals", "Non goals", "Behavior", "Business rules", "Critical files",
   "Acceptance checks", "Out of scope", "Out of scope / deferred", "Assumptions",
   "Open questions", "Status", "Context",
 ]);
@@ -203,6 +205,41 @@ const unknownSections: Rule = ({ repo }) => {
   return out;
 };
 
+// ── loop-orientation (warn-only nudges) ──────────────────────────────────────
+
+const goalMissing: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.specContent === null) continue;
+    const has = headings(f.specContent).some((h) => h.level === 2 && h.title === "Goal");
+    if (!has) {
+      out.push({ rule_id: "GOAL-MISSING", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: "spec has no `## Goal` section — the build loop has no single falsifiable target",
+        fix_hint: "add a one-line falsifiable Goal: the observable outcome that means done" });
+    }
+  }
+  return out;
+};
+
+const acceptanceNotRunnable: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.specContent === null) continue;
+    const lines = f.specContent.split(/\r?\n/);
+    const heads = headings(f.specContent).filter((h) => h.level === 2);
+    const acc = heads.find((h) => h.title.toLowerCase().startsWith("acceptance"));
+    if (!acc) continue;
+    const next = heads.find((h) => h.line > acc.line);
+    const body = lines.slice(acc.line, next ? next.line - 1 : undefined).join("\n");
+    if (/agent-loopable/i.test(body) && !body.includes("`")) {
+      out.push({ rule_id: "ACCEPTANCE-NOT-RUNNABLE", file: `${f.rel}/spec.md`, line: acc.line, specDir: f.dirName,
+        message: "agent-loopable acceptance checks carry no runnable command — the loop must re-interpret prose",
+        fix_hint: "lead each agent-loopable check with a runnable command in backticks (e.g. `npm test`) and its expected result" });
+    }
+  }
+  return out;
+};
+
 // ── integrity, repo-scoped ───────────────────────────────────────────────────
 
 const relationEdges: Rule = ({ repo }) => {
@@ -331,6 +368,8 @@ export const RULES: Rule[] = [
   enumValues,
   unknownFrontmatterKeys,
   unknownSections,
+  goalMissing,
+  acceptanceNotRunnable,
   relationEdges,
   danglingLinks,
   knowledgeHasStatus,

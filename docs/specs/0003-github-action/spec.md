@@ -25,6 +25,11 @@ differ. The workflow file it runs is what `specline init` optionally generates
 **Appetite — one sitting.** The composite/reusable action, the PR-diff →
 `--changed` wiring, the exit-code gate, and PR-annotation reporting.
 
+## Goal
+
+A pull request that breaks a spec's structure cannot merge — the check fails with
+inline annotations; a conforming PR passes, with parity to the local CLI.
+
 ## Non-goals
 
 - **No validation logic of its own.** Every rule lives in the doctor engine; the
