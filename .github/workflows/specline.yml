@@ -1,0 +1,13 @@
+# Self-dogfood: gate this repo's own docs/ on PRs with the local composite action.
+name: specline
+on:
+  pull_request:
+    paths: ["docs/**"]
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./
