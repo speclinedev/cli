@@ -8,7 +8,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import {
   FOLDER_DOCS, TIER_FOLDERS, renderReadme, renderDocsReadme, isGenerated,
-  docArchitecture, architectureMd, githubWorkflow,
+  docArchitecture, architectureMd, githubWorkflow, speclineYml,
 } from "./content.ts";
 
 export type FileKind = "generated" | "scaffold";
@@ -25,6 +25,7 @@ function planInit(opts: InitOptions): Planned[] {
   const folders = TIER_FOLDERS[opts.tier] ?? TIER_FOLDERS[1]!;
   const plan: Planned[] = folders.map((f) => ({ rel: `docs/${f}/README.md`, content: renderReadme(f), kind: "generated" as const }));
   plan.push({ rel: "docs/README.md", content: renderDocsReadme(folders), kind: "generated" });
+  plan.push({ rel: "specline.yml", content: speclineYml(opts.tier, opts.decider), kind: "scaffold" });
   plan.push({ rel: "docs/architecture.md", content: architectureMd(), kind: "scaffold" });
   plan.push({ rel: "docs/conventions/doc-architecture.md", content: docArchitecture(opts.tier, opts.decider), kind: "scaffold" });
   plan.push({ rel: "docs/specs/.id-counter", content: "0000", kind: "scaffold" });

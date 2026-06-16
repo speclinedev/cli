@@ -66,11 +66,17 @@ export interface MdFile {
   content: string;
 }
 
+export interface RepoConfig {
+  /** acceptance + Behavior item count above which SCOPE-EXCEEDS-SIZE nudges while size: small. */
+  suggestSlicingPast: number;
+}
+
 export interface Repo {
   root: string;
   docsDir: string;
   tier: number;
   tierSource: "declared" | "override" | "default";
+  config: RepoConfig;
   counter: number | null;
   specs: SpecFolder[];
   knowledge: SpecFolder[];
@@ -145,6 +151,23 @@ function readTier(docsDir: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** Read `specline.yml` at repo root — the source of truth for pins and thresholds
+ *  (doc-architecture.md is the demoted fallback). Only the top-level scalars doctor
+ *  currently consumes are read; nested blocks (staleness, focus_limit, models) have
+ *  no rule consuming them yet, so parsing them now would be scaffolding. */
+function readSpeclineConfig(root: string): { tier: number | null; config: RepoConfig } {
+  const f = join(root, "specline.yml");
+  const fallback = { tier: null as number | null, config: { suggestSlicingPast: 6 } };
+  if (!existsSync(f)) return fallback;
+  const text = readFileSync(f, "utf8");
+  const tierM = text.match(/^tier:\s*(\d+)/m);
+  const sliceM = text.match(/^suggest_slicing_past:\s*(\d+)/m);
+  return {
+    tier: tierM ? Number(tierM[1]) : null,
+    config: { suggestSlicingPast: sliceM ? Number(sliceM[1]) : 6 },
+  };
+}
+
 function readCounter(specsDir: string): number | null {
   const f = join(specsDir, ".id-counter");
   if (!existsSync(f)) return null;
@@ -170,7 +193,8 @@ export function loadRepo(root: string, opts: LoadOptions = {}): Repo {
   const mdFiles: MdFile[] = [];
   walkMd(docsDir, root, mdFiles);
 
-  const declaredTier = readTier(docsDir);
+  const { tier: ymlTier, config } = readSpeclineConfig(root);
+  const declaredTier = ymlTier ?? readTier(docsDir);
   let tier: number;
   let tierSource: Repo["tierSource"];
   if (opts.tierOverride !== undefined) {
@@ -189,6 +213,7 @@ export function loadRepo(root: string, opts: LoadOptions = {}): Repo {
     docsDir,
     tier,
     tierSource,
+    config,
     counter: readCounter(specsDir),
     specs,
     knowledge,

@@ -3,14 +3,14 @@
 // parses args, renders output (JSON is the source of truth; human is a projection),
 // and maps results to a stable exit code. All real logic lives in the engine/init.
 
-import { existsSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { run, exitCodeFor, type Mode, type Report } from "../engine/run.ts";
 import { REGISTRY } from "../engine/rules.ts";
 import { init, sync, type RunResult } from "../init/scaffold.ts";
 import { TOOL_VERSION, CANON } from "../version.ts";
+import { loadCanon } from "../canon.ts";
 
 const USAGE = `specline — spec-driven development tooling
 
@@ -128,7 +128,7 @@ function parseArgs(argv: string[]): Args {
 }
 
 function canonText(): string {
-  return readFileSync(fileURLToPath(new URL("../../canon/specline-2.3.md", import.meta.url)), "utf8");
+  return loadCanon().text;
 }
 
 function printRules(format: Format): void {

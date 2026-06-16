@@ -30,13 +30,18 @@ export const REGISTRY: RuleMeta[] = [
   { rule_id: "GOAL-MISSING", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "ACCEPTANCE-NOT-RUNNABLE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "LOOP-BUDGET-INVALID", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  // v2.4 cluster — warnings first, while the altitude/parent-map format settles.
+  { rule_id: "JUDGEABLE-NO-SECTION", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  { rule_id: "SCOPE-EXCEEDS-SIZE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  { rule_id: "PARENT-HAS-MECHANICS", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  { rule_id: "PARENT-NO-SCOPES", severity: "warning", scope: "spec", tier: 1, downgradable: false },
 ];
 
 export const REGISTRY_BY_ID: Map<string, RuleMeta> = new Map(REGISTRY.map((r) => [r.rule_id, r]));
 
 const KNOWN_FRONTMATTER_KEYS = new Set([
-  "id", "slug", "type", "status", "decider", "blast_radius", "target_model",
-  "ratified_by", "ratified_at", "created", "canon", "shipped", "ttl_expires",
+  "id", "slug", "type", "status", "decider", "blast_radius", "size", "target_model",
+  "ratified_by", "ratified_at", "created", "canon", "shipped", "stale_after",
   "acceptance_results", "deputy", "killed_reason", "loop_budget",
 ]);
 
@@ -47,6 +52,8 @@ const KNOWN_SECTIONS = new Set([
 ]);
 
 const ALLOWED_BLAST_RADIUS = new Set(["low", "medium", "high"]);
+const ALLOWED_SIZE = new Set(["small", "large"]);
+const ALLOWED_TYPE = new Set(["feature", "bug", "chore", "parent"]);
 const ALLOWED_TARGET_MODEL = new Set(["light", "standard", "frontier"]);
 const STATUS_REQUIRED_SECTIONS = ["State", "Done", "In progress", "Last green checkpoint", "Dead ends"];
 const RATIFIED_STATES = new Set(["ratified", "building"]);
@@ -161,7 +168,10 @@ const statusSchema: Rule = ({ repo }) => {
 
 const enumValues: Rule = ({ repo }) => {
   const out: RawFinding[] = [];
-  const checks: [string, Set<string>][] = [["blast_radius", ALLOWED_BLAST_RADIUS], ["target_model", ALLOWED_TARGET_MODEL]];
+  const checks: [string, Set<string>][] = [
+    ["type", ALLOWED_TYPE], ["blast_radius", ALLOWED_BLAST_RADIUS],
+    ["size", ALLOWED_SIZE], ["target_model", ALLOWED_TARGET_MODEL],
+  ];
   for (const f of [...repo.specs, ...repo.archive]) {
     if (f.frontmatter === null || !f.frontmatter.ok) continue;
     for (const [key, allowed] of checks) {
@@ -250,6 +260,98 @@ const acceptanceNotRunnable: Rule = ({ repo }) => {
       out.push({ rule_id: "ACCEPTANCE-NOT-RUNNABLE", file: `${f.rel}/spec.md`, line: acc.line, specDir: f.dirName,
         message: "agent-loopable acceptance checks carry no runnable command — the loop must re-interpret prose",
         fix_hint: "lead each agent-loopable check with a runnable command in backticks (e.g. `npm test`) and its expected result" });
+    }
+  }
+  return out;
+};
+
+// ── v2.4 cluster: altitude + parent-map (warn-only nudges) ───────────────────
+
+/** Body of the level-2 section whose title starts with `prefix`, up to the next
+ *  level-2 heading. Empty string if absent. */
+function sectionBody(specContent: string, prefix: string): string {
+  const lines = specContent.split(/\r?\n/);
+  const heads = headings(specContent).filter((h) => h.level === 2);
+  const start = heads.find((h) => h.title.toLowerCase().startsWith(prefix.toLowerCase()));
+  if (!start) return "";
+  const next = heads.find((h) => h.line > start.line);
+  return lines.slice(start.line, next ? next.line - 1 : undefined).join("\n");
+}
+
+function hasSection(specContent: string, prefix: string): boolean {
+  return headings(specContent).some((h) => h.level === 2 && h.title.toLowerCase().startsWith(prefix.toLowerCase()));
+}
+
+function countListItems(body: string): number {
+  return body.split(/\r?\n/).filter((l) => /^\s*(\d+[.)]|[-*])\s+\S/.test(l)).length;
+}
+
+const judgeableNoSection: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.specContent === null) continue;
+    const acc = sectionBody(f.specContent, "acceptance");
+    if (acc === "" || !/judgeable/i.test(acc)) continue;
+    // judgeable's falsifiability gate is a named section — a `§` or the word "section".
+    if (!/§|\bsection\b/i.test(acc)) {
+      const head = headings(f.specContent).find((h) => h.level === 2 && h.title.toLowerCase().startsWith("acceptance"));
+      out.push({ rule_id: "JUDGEABLE-NO-SECTION", file: `${f.rel}/spec.md`, line: head?.line ?? null, specDir: f.dirName,
+        message: "a judgeable acceptance item cites no spec section to verify against — it is not falsifiable (B5)",
+        fix_hint: 'name the section each judgeable item is judged against (e.g. "matches §4.3"); that reference is judgeable\'s falsifiability gate' });
+    }
+  }
+  return out;
+};
+
+const scopeExceedsSize: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  const threshold = repo.config.suggestSlicingPast;
+  for (const f of repo.specs) {
+    if (f.specContent === null) continue;
+    const size = fmString(f, "size");
+    if (size === "large") continue; // declared atomic — doctor respects the answer
+    const count = countListItems(sectionBody(f.specContent, "behavior")) +
+      countListItems(sectionBody(f.specContent, "acceptance"));
+    if (count > threshold) {
+      out.push({ rule_id: "SCOPE-EXCEEDS-SIZE", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: `${count} Behavior + Acceptance items (over ${threshold}) while size is ${size ?? "small (default)"}`,
+        fix_hint: "slice it into smaller scopes, or declare size: large if this is a genuinely atomic build" });
+    }
+  }
+  return out;
+};
+
+const parentHasMechanics: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.specContent === null || fmString(f, "type") !== "parent") continue;
+    if (hasSection(f.specContent, "behavior") || hasSection(f.specContent, "acceptance")) {
+      out.push({ rule_id: "PARENT-HAS-MECHANICS", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: "a parent-map carries Behavior/Acceptance — it is regressing into a plan",
+        fix_hint: "a parent stays a map: intent, shared non-goals, invariants, and a child-scope index. Push mechanics down into child scopes" });
+    }
+  }
+  return out;
+};
+
+const parentNoScopes: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  // child scopes declare `part_of: <parent-id>` — collect every id referenced that way.
+  const parented = new Set<string>();
+  for (const f of repo.specs) {
+    if (f.relationsContent === null) continue;
+    const parsed = parseFlatYaml(f.relationsContent);
+    for (const edge of asEdges(parsed.data["part_of"])) {
+      const m = edge.match(/^(\d{4})/);
+      if (m) parented.add(m[1]!);
+    }
+  }
+  for (const f of repo.specs) {
+    if (f.specContent === null || fmString(f, "type") !== "parent" || f.id === null) continue;
+    if (!parented.has(f.id)) {
+      out.push({ rule_id: "PARENT-NO-SCOPES", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: `parent-map ${f.id} has no child scopes (nothing declares part_of: ${f.id}) — it is a misfiled scope`,
+        fix_hint: "give the parent child scopes (each an ordinary spec with part_of: this id), or make this an ordinary scope (type: feature)" });
     }
   }
   return out;
@@ -386,6 +488,10 @@ export const RULES: Rule[] = [
   unknownSections,
   goalMissing,
   acceptanceNotRunnable,
+  judgeableNoSection,
+  scopeExceedsSize,
+  parentHasMechanics,
+  parentNoScopes,
   relationEdges,
   danglingLinks,
   knowledgeHasStatus,

@@ -1,9 +1,8 @@
-# Specline — Canon Proposal v2.3
+# Specline — Canon Proposal v2.4
 
-**Status:** PROPOSAL — supersedes Canon v2.2 when ratified.
-**Canon version:** 2.3.0-draft. Repos pin a canon version in their
-`docs/conventions/doc-architecture.md` header; this contract changes first,
-repo conventions follow.
+**Status:** PROPOSAL — supersedes Canon v2.3 when ratified.
+**Canon version:** 2.4.0-draft. Repos pin a canon version in `specline.yml` at
+repo root; this contract changes first, repo conventions follow.
 
 "Specline" is the working name. Branding is an open question; the rules are
 not.
@@ -39,6 +38,30 @@ most expensive to misdirect.
    the orchestrator loop with summarized-thinking, refusal-aware models.
 9. **B2 is reframed for million-token windows** — it protects signal quality,
    not just capacity.
+
+## Changes from v2.3
+
+A refinement at one seam — between *shaped* and *built/verified* — all
+**additive and non-breaking** (a v2.3 spec stays valid):
+
+10. **Acceptance has three altitudes, not two.** `judgeable` joins `agent-loopable`
+    and `human-gate` — settled by a fresh-context agent against a **named section**.
+    Falsifiable (B5) is sharpened to *settleable-the-same-way-twice*, in three forms.
+11. **The build loop is two loops.** A mechanical **inner** loop (implementer ↔
+    provable checks) wrapped by a bounded-judgment **outer** loop (verifier ↔
+    `judgeable` partition, with its own bounce budget). The reviewer finally has a
+    home without holding the inner loop.
+12. **One-Sitting is re-scoped** to the spec's *reviewability* (`appetite`), not the
+    build's size. **`size: small|large`** is the new build-size axis; doctor nudges
+    only on the *mismatch* (`size: small` over threshold), never on size itself.
+13. **The parent-map** (`type: parent`) — decomposition into buildable scopes plus a
+    parent that is a *map, not a plan*. Not a "bet."
+14. **`specline.yml`** at repo root — the tunables (pins, thresholds, model map) move
+    out of a fragile markdown table into machine-readable config.
+15. **Vocabulary paid down.** TTL → **staleness** (`stale_after`) — TTL meant
+    *discard on expiry*; we *escalate*. Context Budget → **coupling ceiling** — it is
+    a structural ceiling measured at shaping, not a runtime budget. `blast_radius`,
+    `ratify`, `quarantine`, `deputy`, `tombstone` stay: honest borrows.
 
 ---
 
@@ -79,7 +102,7 @@ which it fails. A claim without a failure mode is marketing.
   demo. Fails when: checks are written unfalsifiably — which is why
   unfalsifiable specs cannot ratify.
 - **Right model on the right work.** Mechanism: `blast_radius` and the
-  context-budget proxy let the orchestrator route effort and model per spec.
+  coupling-ceiling proxy let the orchestrator route effort and model per spec.
   Fails when: the spec under-declares its risk — which is why blast_radius is a
   ratification-time judgment, not a default.
 - **Product memory that survives staff, vendors, and model upgrades.**
@@ -104,18 +127,22 @@ verification. These seven rules are the system; everything after them is
 implementation. Each is either doctor-enforced or names its gate.
 
 **1. The One-Sitting Rule.** A spec must be small enough that the product owner
-can verify its acceptance checks in a single review sitting. Human attention is
-the appetite unit. If you cannot review it in one pass, split it; IDs are cheap.
-*(Gate: ratification. Judgment-only.)*
+can read and judge the *contract* in a single review sitting. Human attention is
+the **appetite** unit — appetite governs the spec's reviewability, **not the
+build's size**. A large atomic build with a tight, one-sitting spec is eligible;
+build size is governed by `size`, `blast_radius`, and `loop_budget`, not by this
+rule. If you cannot review the spec in one pass, split it or decompose it
+(parent-map); IDs are cheap. *(Gate: ratification. Judgment-only.)*
 
-**2. The Context Budget.** A spec plus everything its relations force an agent
-to load must fit the repo's pinned budget with room left to think. With
-million-token context windows the binding constraint is no longer *fitting* the
-spec — it is **signal quality**: irrelevant forced loads measurably degrade a
-frontier model's output, not just its latency. Doctor computes the proxy (total
-size of `spec.md` + transitively forced loads) and warns on breach; read a
-breach as "this feature is too entangled," a design smell, not a loading
-problem. *(Doctor: warn.)*
+**2. The Coupling Ceiling.** A spec plus everything its relations force an agent
+to load must fit under the repo's pinned ceiling with room left to think. This is
+measured **once, at shaping time** — it is a structural property of the spec, not
+a runtime budget the agent spends down. With million-token context windows the
+binding constraint is no longer *fitting* the spec — it is **signal quality**:
+irrelevant forced loads measurably degrade a frontier model's output, not just its
+latency. Doctor computes the proxy (total size of `spec.md` + transitively forced
+loads) and warns on breach; read a breach as "this feature is too entangled," a
+design smell, not a loading problem — slice it or decouple it. *(Doctor: warn.)*
 
 **3. The Human Gate.** Humans ratify and humans accept. Ratification is recorded
 — `ratified_by` + `ratified_at` in frontmatter, set by the named human's
@@ -125,23 +152,30 @@ exist. *(Doctor: `ratified` without `ratified_by` is an error. Whether the human
 actually read it remains judgment — no system detects attention, only
 accountability.)*
 
-**4. The TTL.** `building` and `blocked` each carry an expiry. Expiry
-**quarantines the spec**: doctor errors on that spec's own PRs and warns
-repo-wide — it never blocks unrelated work. Exit from quarantine is an explicit
-reshape (re-ratification) or kill (archive with tombstone). Moving `ttl_expires`
+**4. Staleness.** `building` and `blocked` each carry a `stale_after` date — the
+point past which an untouched build is presumed abandoned, not the point it is
+discarded. Going stale **quarantines the spec**: doctor errors on that spec's own
+PRs and warns repo-wide — it never blocks unrelated work. Exit from quarantine is an explicit
+reshape (re-ratification) or kill (archive with tombstone). Moving `stale_after`
 without a same-commit `ratified_at` update is an error: no silent extension.
-TTL is the *time* trigger of build-loop escalation; its *progress* twin is
+Staleness is the *time* trigger of build-loop escalation; its *progress* twin is
 `loop_budget` (see The build loop), which escalates on no convergence rather than
 on elapsed time. *(Doctor: enforced.)*
 
-**5. Falsifiable or Draft.** A spec is not `ratified` until its acceptance checks
-can be executed by an agent or verified by a person in one sitting — and the
-agent-loopable subset is *actually executed* in the implementation PR, results
-linked, before graduation. Acceptance checks are **partitioned** (see Spec body)
-so the build loop knows its own mechanical exit condition. "Improve the
-dashboard" stays draft forever. *(Doctor: graduation without a linked
-acceptance run is an error; a `ratified` spec whose acceptance checks are not
-partitioned is an error.)*
+**5. Falsifiable or Draft.** Falsifiable means **settleable the same way twice**,
+in one of three forms: by a runnable **command** (`agent-loopable`), by a
+**fresh-context agent judging against a named spec section** (`judgeable`), or by
+the **decider in one sitting** (`human-gate`). A spec is not `ratified` until its
+acceptance checks meet one of these — and the agent-loopable subset is *actually
+executed* in the implementation PR, results linked, before graduation. The named
+section is `judgeable`'s falsifiability gate exactly as the backticked command is
+`agent-loopable`'s; a `judgeable` item that cites no section is not falsifiable.
+Acceptance checks are **partitioned by altitude** (see Spec body) so the build
+loop knows its own mechanical exit condition. "Improve the dashboard" cites no
+section and runs no command — it fails all three and stays draft forever.
+*(Doctor: graduation without a linked acceptance run is an error; a `ratified`
+spec whose acceptance checks are not partitioned, or a `judgeable` item with no
+section reference, is an error.)*
 
 **6. Intent Over Description.** Documentation records what code cannot say:
 goals, non-goals, rejected options, evidence, business rules, boundaries. Code
@@ -170,7 +204,7 @@ queue is. WIP limits on humans, not on machines. *(Doctor: enforced.)*
 | Drafting and critiquing specs | Agent (planner); PO edits |
 | Building, testing, status upkeep | Agent (implementer) |
 | Agent-loopable acceptance execution | Implementer, in the implementation PR |
-| Verification against the spec | **Fresh-context verifier subagent**, not the implementer self-critiquing |
+| Verification against the spec (the `judgeable` partition, outer loop) | **Fresh-context verifier subagent**, not the implementer self-critiquing |
 | Graduation editing pass | Agent, triggered by PR |
 | Structure validation | `doctor`, in CI |
 | Meaning validation (tense, scope, sizing, B6) | Human, at the two gates |
@@ -181,10 +215,10 @@ shares its blind spots. The implementer loops on the agent-loopable checks; the
 verifier independently confirms them and the reviewer-recipe context (below)
 before the human acceptance gate.
 
-Each repo's conventions name the deciders and one **deputy**. If a TTL expires or
-an open-question deadline passes while the decider is unavailable, the deputy
+Each repo's conventions name the deciders and one **deputy**. If a spec goes stale
+or an open-question deadline passes while the decider is unavailable, the deputy
 decides; with no deputy, the agent applies the entry's stated default (that is
-what defaults are for) and the spec flips to `blocked` with TTL set to the
+what defaults are for) and the spec flips to `blocked` with `stale_after` set to the
 decider's stated return. The system degrades to paused, never to improvised.
 
 ---
@@ -212,7 +246,8 @@ docs/
 ```
 
 The word "features" is retired (it meant four different things across four
-repos); a bug is a spec with `type: bug`. The model-tier map (new in v2.3) lives
+repos); a bug is a spec with `type: bug`, and a decomposition parent is a spec
+with `type: parent` (see Decomposition). The model-tier map (new in v2.3) lives
 in conventions: it maps capability tiers named in specs (`light|standard|frontier`)
 to the actual models a repo uses, so specs stay agent-agnostic.
 
@@ -229,12 +264,45 @@ skeleton:
 
 These READMEs are **generated from this canon, never hand-edited** — the
 per-directory definitions in the layout above are their source. Each carries a
-header marking it a generated artifact (`<!-- generated · canon 2.3 · do not edit ·
+header marking it a generated artifact (`<!-- generated · canon 2.4 · do not edit ·
 run: specline sync -->`), in the same class as `relations-index.yml`. `specline
 init` writes them when a repo adopts Specline; `specline sync` (or `doctor --fix`)
 regenerates them on a canon-version bump. Doctor checks **drift** — a README that
 no longer matches what the current canon would generate is a finding — but never
 writes them: generation is the writer's job, the drift check is the validator's.
+
+### Configuration — `specline.yml`
+
+A repo's **tunables** — the numbers and names it calibrates to its own scale —
+live in `specline.yml` at repo root, read deterministically by doctor (which
+previously regexed the tier out of a markdown table — fragile). It is the source
+of truth for pins and thresholds; `docs/conventions/doc-architecture.md` is
+demoted to optional prose/rationale. Absent → doctor falls back to canon defaults.
+
+```yaml
+# specline.yml
+canon: 2.4.0-draft
+tier: 1
+deciders: [jonathan]
+deputy: null
+staleness:            # the staleness windows (durations), per state
+  building: 30 days   # frontmatter stale_after is computed from these
+  blocked:  14 days
+focus_limit:          # decider WIP — the B7 ceiling (per decider)
+  building: 3
+  active:   6
+coupling_ceiling: 50%        # B2 — spec + forced loads, as % of the weakest model's window
+suggest_slicing_past: 6      # acceptance/Behavior count above which doctor nudges to slice (while size: small)
+review_rounds_before_human: 2  # outer-loop verifier↔implementer bounce budget
+models:               # capability tier → real model
+  light:    claude-haiku
+  standard: claude-sonnet
+  frontier: claude-opus
+```
+
+**The boundary:** `specline.yml` tunes **thresholds and pins** — the *grain*, not
+the *methodology*. It does **not** configure rules, schema, or partitions. Tune
+the numbers; the rules are the canon's.
 
 ---
 
@@ -286,16 +354,17 @@ docs/specs/NNNN-slug/
 ---
 id: 0007
 slug: ranch-mgmt
-type: feature            # feature | bug | chore
+type: feature            # feature | bug | chore | parent
 status: building         # draft | ratified | building | blocked | shipped | killed
 decider: jonathan
-blast_radius: medium     # low | medium | high — NEW in v2.3; default required to ratify
+blast_radius: medium     # low | medium | high — declared risk; default required to ratify
+size: small              # small | large — declared BUILD size (small = one slice; large = an atomic batch). default small
 target_model: standard   # OPTIONAL: light | standard | frontier (capability tier, mapped in conventions)
 ratified_by: jonathan    # set by the ratifying human's commit
 ratified_at: 2026-06-11
 created: 2026-06-10
-ttl_expires: 2026-06-18  # set on entering building or blocked
-loop_budget: 5           # OPTIONAL (new in v2.3): autonomy grant — see Escalation
+stale_after: 2026-06-18  # set on entering building or blocked — staleness/abandonment trigger
+loop_budget: 5           # OPTIONAL: autonomy grant — see Escalation
 ---
 ```
 
@@ -306,20 +375,24 @@ and `killed` are set during archiving and exist only in `archive/`.
 `status` replaces presence-semantics: agents reliably miss the *absence* of a
 file, so build-readiness is `status: ratified` plus a clean `open-questions.md`.
 
-**`blast_radius`** (new) is the spec's declared risk surface — how much breaks if
+**`blast_radius`** is the spec's declared risk surface — how much breaks if
 this is wrong. It is a ratification-time judgment, not a default, and it drives
-Routing (below): reviewer depth, implementer effort, and model tier. **`target_model`**
-optionally pins a capability tier; if absent, the orchestrator derives one from
-`blast_radius` and the context-budget proxy.
+Routing (below): reviewer depth, implementer effort, and model tier. **`size`**
+is the declared *build* size, set at ratification the way `blast_radius` declares
+risk: `small` (default — one slice) or `large` (an atomic batch). It is the **build**
+axis; `appetite` (One-Sitting) is the **review** axis — a spec can have a small
+appetite and a large size at once (a tight contract over a big atomic build).
+**`target_model`** optionally pins a capability tier; if absent, the orchestrator
+derives one from `blast_radius` and the coupling-ceiling proxy.
 
-**Escalation — `loop_budget` (new) and `ttl_expires` coexist.** A build escalates
+**Escalation — `loop_budget` and `stale_after` coexist.** A build escalates
 from autonomous back to a human gate at the **first** of two independent triggers,
 so they never conflict:
-- **`ttl_expires`** is the *time* trigger — wall-clock staleness (a build left open
+- **`stale_after`** is the *time* trigger — wall-clock staleness (a build left open
   too long; catches abandonment).
 - **`loop_budget`** is the *progress* trigger — the cap on autonomous build cycles
   with no green-checkpoint advance (catches thrashing, which can exhaust the budget
-  long before TTL).
+  long before the spec goes stale).
 `loop_budget` is the PO's autonomy grant, set at ratification like `blast_radius`.
 The orchestrator defines what a "cycle" is and enforces both; doctor only validates
 they are well-formed. Do not merge them — one measures time, the other progress.
@@ -347,17 +420,27 @@ they are well-formed. Do not merge them — one measures time, the other progres
    pricing API cannot quote discontinued SKUs — render the no-quote state; do
    not synthesize a price."*
 7. **Critical files** — pointers into existing code, not restatements of it.
-8. **Acceptance checks** — falsifiable, **partitioned**, and — for the
-   agent-loopable set — **executable** *(new in v2.3)*:
-   - `agent-loopable` — executable by the implementer/verifier every iteration;
-     this set **is the build loop's exit condition** and is executed in the
-     implementation PR (B5). Each **leads with a runnable command** (in
-     backticks) and its expected result, so the loop *runs* the check rather than
-     re-interpreting prose. *(e.g. `npm test -- trade-in` — exits 0.)*
-   - `human-gate` — verified once by a person at the acceptance gate (taste,
-     product-fit, anything no check can falsify); prose, not a command.
+8. **Acceptance checks** — falsifiable, **partitioned by altitude** (B5), and —
+   for the agent-loopable set — **executable**. The partition is named by *how
+   settleable* the claim is, not just by who verifies it:
+   - `agent-loopable` (**provable**) — settled by a runnable command, executable by
+     the implementer/verifier every iteration; this set **is the build loop's exit
+     condition** and is executed in the implementation PR (B5). Each **leads with a
+     runnable command** (in backticks) and its expected result, so the loop *runs*
+     the check rather than re-interpreting prose. *(e.g. `npm test -- trade-in` —
+     exits 0.)*
+   - `judgeable` *(new)* — settled by a **fresh-context agent judging against a
+     named spec section**, by no command. The section reference is mandatory: it is
+     this altitude's falsifiability gate. The **verifier** owns this partition in the
+     outer loop (see The build loop); it gates the hand-off to the human, never the
+     inner loop. *(e.g. "matches the empty-state behavior in §4.3" — verifier
+     confirms against that section.)*
+   - `human-gate` (**tasteable**) — verified once by a person at the acceptance gate
+     (taste, product-fit, anything no check can falsify); prose, not a command.
    An undifferentiated list hides the loop's stop condition and smuggles a human
-   step into an autonomous run.
+   step into an autonomous run. The middle altitude introduces **bounded judgment**
+   into the loop on purpose: deterministic *inner* loop, bounded-judgment *outer*
+   loop, unbounded judgment at the human end — judgment is layered, not banished.
 9. **Out of scope / deferred** — with IDs if already allocated.
 
 Write intent and rules richly; write mechanics sparsely (B6). The builder reads
@@ -416,7 +499,7 @@ conflicts_with: []
 Forward edges only, authored. Reverse edges (`depended_on_by`) live in the
 generated `docs/relations-index.yml`, maintained by `doctor --fix`. Every edge
 carries a one-line *why* — the why is what lets an agent decide whether the
-related doc is worth its context budget, and what the reviewer reads to compute
+related doc is worth the context it costs to load, and what the reviewer reads to compute
 blast radius.
 
 ### No recursion
@@ -424,6 +507,31 @@ blast radius.
 Sub-folders inside a spec folder are prohibited. A module needing sub-specs gives
 each its own ID with `part_of: NNNN`. Flat folders with explicit edges beat
 nested trees.
+
+### Decomposition — the parent-map
+
+When a feature is too big for one scope, it decomposes into buildable **scopes**
+(ordinary specs) plus a **parent** that is a **map, not a plan** (`type: parent`).
+Decomposition is the answer to one shaping question — *can this ship in
+independently-valuable increments?* **Yes → decompose** into a parent-map plus
+sequential scopes. **No → one large scope** (`size: large`, tight spec, big budget,
+high `blast_radius` + verifier) — correctly large, not ineligible.
+
+- **The parent holds, once:** intent, shared non-goals, the load-bearing
+  invariant(s), external dependencies, and an index of its child scopes (with
+  status rollup — the parent ships when its scopes ship).
+- **The parent forbids:** Goal-as-single-check, Behavior, acceptance — any
+  mechanics. Its balloon-guard is symmetric to One-Sitting: **stay a map.** doctor
+  flags a parent that grows mechanics (`PARENT-HAS-MECHANICS` — "decompose into
+  scopes") or a parent with no children (`PARENT-NO-SCOPES` — "misfiled scope").
+- **The loop targets the scopes, never the parent.** A shared external dependency
+  is declared once on the parent and **materialized as the first child scope**;
+  downstream scopes `depend_on` it.
+
+This is *committed* planning, so it lives in `specs/` like any spec — not a "bet,"
+no wager or exploratory connotation. Scopes remain the default and the gravity
+well; the parent appears only when a feature genuinely splits. A solo planner
+doing one scope never writes one.
 
 ### Selective loading
 
@@ -471,7 +579,7 @@ it needs to run *without a human in each turn*. Drawn as a circle:
    advance. An iteration that makes no such advance spends one cycle of the
    **`loop_budget`**.
 5. **Escalate at a boundary.** The loop runs autonomously until the **first** of
-   two triggers fires: `loop_budget` exhausted (no progress) or `ttl_expires`
+   two triggers fires: `loop_budget` exhausted (no progress) or `stale_after`
    reached (too much time). Either hands control back to a **human gate** — the
    gates are the loop's *boundary conditions*, not interruptions to it.
 6. **Hand back via artifacts.** Across iterations and at handback, the loop
@@ -480,9 +588,24 @@ it needs to run *without a human in each turn*. Drawn as a circle:
 
 So the spec carries the loop's four inputs — **target** (Goal), **exit condition**
 (agent-loopable checks), **memory** (`status.md`), and **autonomy grant**
-(`loop_budget`, bounded in time by `ttl_expires`) — and the two gates bracket it.
+(`loop_budget`, bounded in time by `stale_after`) — and the two gates bracket it.
 doctor validates those inputs are present and well-shaped; the **orchestrator**
 runs the loop and enforces the boundaries.
+
+**Two loops, not one.** The build loop above is really an *inner* loop wrapped by
+an *outer* one:
+- **Inner loop** — implementer ↔ the **provable** (`agent-loopable`) checks.
+  Mechanical exit: the checks pass. Bounded by `loop_budget` / `stale_after`. The
+  verifier is correctly *absent* here.
+- **Outer loop** — the **fresh-context verifier** ↔ the implementer against the
+  **judgeable** partition. It has its own small **bounce budget**
+  (`review_rounds_before_human`); it gates the transition *to the human*, never the
+  inner loop. This is where the reviewer finally has a home: it preserves "the
+  reviewer does not hold the build loop" while restoring a real second gate.
+
+Both loops and their budgets are **named** here for the runner contract; the
+orchestrator is external and pluggable, so the canon names them but does not
+implement them.
 
 A note on the word *loop*: it does double duty here. The **lifecycle loop**
 (shape → ratify → build → graduate) is the feature's journey *across* the gates;
@@ -513,16 +636,20 @@ it would otherwise botch — *provided the build is short-horizon*. Long-horizon
 builds need a frontier implementer regardless of spec quality, because
 sustained autonomy is a capability, not a specification.
 
-**Cost estimation.** Doctor's context-budget proxy (B2) already computes the
+**Cost estimation.** Doctor's coupling-ceiling proxy (B2) already computes the
 dominant input to build cost. Combined with the agent-loopable acceptance count
 and `blast_radius`, it yields a rough `expected_build_tokens`, which × the tier's
 price gives a pre-build cost estimate at ratify time. This is an instrument, not
 a gate.
 
-**`blast_radius` → effort.** `low` → routine effort, no separate verifier
-subagent required; `medium` → high effort, verifier subagent runs the
-agent-loopable checks; `high` → maximum effort, fresh-context verifier mandatory,
-frontier tier unless overridden.
+**`blast_radius` → effort, and `judgeable` depth.** `low` → routine effort, no
+separate verifier subagent required, and the `judgeable` partition may be empty
+(like `human-gate` — the outer loop collapses); `medium` → high effort, verifier
+subagent runs the agent-loopable checks and the `judgeable` partition; `high` →
+maximum effort, fresh-context verifier mandatory, frontier tier unless overridden.
+`blast_radius` gates the *depth* of the `judgeable` partition, not its existence;
+it also sets the expectation for `size` (a `high` blast radius rarely fits
+`size: small`).
 
 Routing is convention the orchestrator reads; specs name capability tiers
 (`light|standard|frontier`), and the per-repo model-tier map binds tiers to real
@@ -569,11 +696,11 @@ refusal-aware frontier model:
 
 The merged spec on main is canonical, always. Mid-build reshaping:
 
-1. Builder hits a contradiction → flips `status: blocked` (TTL per B4) and
+1. Builder hits a contradiction → flips `status: blocked` (`stale_after` per B4) and
    records it under `status.md` *Dead ends* if an approach was abandoned.
 2. The amendment lands as a **spec-amendment commit/PR to main** touching only
    the spec folder — approved by the decider, whose approval updates
-   `ratified_at` and resets `ttl_expires` in the same commit.
+   `ratified_at` and resets `stale_after` in the same commit.
 3. `status: building` resumes. The implementation branch rebases on the amended
    contract.
 
@@ -675,6 +802,13 @@ Checks (v2.3 additions in **bold**):
 - `ratified|building` requires `ratified_by`/`ratified_at` (B3).
 - **`ratified` requires a `blast_radius` value and partitioned acceptance checks
   (at least the `agent-loopable` set present and labeled).**
+- **A `judgeable` acceptance item cites a spec section to verify against
+  (`JUDGEABLE-NO-SECTION`); else it is not falsifiable (B5).**
+- **`size: small` with measured size (acceptance/Behavior count) over
+  `suggest_slicing_past` → warn (`SCOPE-EXCEEDS-SIZE`): slice it, or declare
+  `size: large` if it's atomic. doctor raises the question; the human answers.**
+- **`type: parent` carrying Behavior/acceptance → error (`PARENT-HAS-MECHANICS`);
+  `type: parent` listing no child scopes → error (`PARENT-NO-SCOPES`).**
 - **`status.md`, when present, conforms to the schema (required sections present
   and parseable). Shape only; never prose.**
 - **`target_model`/`blast_radius` values, if present, are from the allowed sets
@@ -685,10 +819,11 @@ Checks (v2.3 additions in **bold**):
   regenerates).
 - `open-questions.md` entries parse; past-deadline entries error; `ratified` with
   default-less entries errors.
-- `building|blocked` past `ttl_expires` → quarantine; `ttl_expires` changed
+- `building|blocked` past `stale_after` → quarantine; `stale_after` changed
   without same-commit `ratified_at` update → error (B4).
-- Decider budget: > 3 `building` or > 6 active per decider → error (B7).
-- Context-budget proxy vs. pinned budget → warn (B2).
+- Decider focus limit: over the configured `building`/`active` ceiling per decider
+  → error (B7).
+- Coupling-ceiling proxy vs. configured `coupling_ceiling` → warn (B2).
 - Graduation PR without linked acceptance-check results → error (B5).
 - Every relative path link under `docs/**` resolves.
 - No `status.md`, open questions, or acceptance checks in `knowledge/`;
@@ -712,7 +847,7 @@ never targets (Goodhart).
   changed between first ratification and archive (computed by `doctor diff`).
   Expected band ~10–40%. Near zero → waterfall; far above → shaping too thin.
   Read it; don't chase it.
-- **TTL outcomes** — breach count and the reshape/kill split.
+- **Staleness outcomes** — breach count and the reshape/kill split.
 - **Graduation latency** — implementation merge → knowledge doc. Target: same PR.
 - **Doctor pass rate on main** — should be 100%.
 - **Routing accuracy** *(new)* — predicted vs. actual build cost by tier, and the
@@ -729,8 +864,9 @@ Tiered so the smallest viable adoption is one afternoon:
   doctor. Value: one validated, agent-buildable contract.
 - **Tier 1 — the loop.** Ratification frontmatter, the two-PR pattern,
   graduation + `archive/`, `knowledge/`. Value: product memory and audit trail.
-- **Tier 2 — the full system.** TTLs, decider budget, relations index, context
-  budget, **blast-radius routing and model tiering**, instrumentation. Value:
+- **Tier 2 — the full system.** Staleness windows, decider focus limit, relations
+  index, coupling ceiling, **blast-radius routing and model tiering**,
+  inner/outer loops, instrumentation. Value:
   parallel agents of varying cost without coordination meetings.
 
 A repo states its tier in `docs/conventions/doc-architecture.md`; doctor checks
@@ -742,7 +878,7 @@ only the rules of the declared tier.
 |---|---|
 | Doctor red on main | Fix-forward; structural reds are small. If recurring, amend the canon, don't route around it. |
 | Graduation skipped | Run the graduation prompt retroactively; the archive-integrity check finds the gap. |
-| TTL quarantine | Decider chooses reshape or kill within one sitting. |
+| Staleness quarantine | Decider chooses reshape or kill within one sitting. |
 | **`loop_budget` exhausted** | The build loop escalated without converging. The decider reads the `status.md` Dead ends, then reshapes the spec (clearer Goal / better-specified checks) or takes the build over by hand. |
 | Gate bypassed | Revert the status flip; the spec returns to draft. |
 | Decider absent | Deputy decides; no deputy → defaults apply, spec parks `blocked`. |
@@ -753,10 +889,13 @@ only the rules of the declared tier.
 ## Open questions for ratification
 
 - Permanent name. "Specline" is the working title.
-- TTL defaults (proposed: `building` 7 days, `blocked` 14).
-- Context budget number (proposed: spec + forced loads ≤ 50% of the weakest
+- Staleness defaults (proposed: `building` 30 days, `blocked` 14 — tied to sprint
+  cadence; set in `specline.yml`).
+- Coupling-ceiling number (proposed: spec + forced loads ≤ 50% of the weakest
   in-use model's window, by doctor's byte proxy).
-- Decider budget defaults (proposed: 3 building / 6 active).
+- Decider focus-limit defaults (proposed: 3 building / 6 active).
+- `suggest_slicing_past` (proposed: 6) and `review_rounds_before_human` (proposed:
+  2) defaults.
 - **`blast_radius` → effort/model mapping defaults, and the capability-tier
   vocabulary (`light|standard|frontier` vs. explicit model names).**
 - **Whether `target_model` is authored or always derived.**
@@ -764,7 +903,8 @@ only the rules of the declared tier.
 - Cross-repo edge validation.
 - **The orchestrator (build-loop runner) is external and pluggable.** Specline
   defines the *contract* the loop runs against — Goal, agent-loopable checks,
-  `status.md`, `loop_budget`/`ttl_expires`, routing — and does **not** build the
+  `status.md`, `loop_budget`/`stale_after`, the inner/outer loop budgets, routing —
+  and does **not** build the
   *runner*. A capable model self-orchestrates a single spec (e.g. an agent + a thin
   loop harness); a fuller external orchestrator adds what one model can't do for
   itself: fresh-context re-entry, parallel scheduling across the decider budget,

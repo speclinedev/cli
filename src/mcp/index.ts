@@ -9,16 +9,15 @@
 //   doctor_spec   — the pinned canon, for injecting Specline into an agent's context
 //   doctor_rules  — the rule catalog the agent will be checked against
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { run } from "../engine/run.ts";
 import { REGISTRY } from "../engine/rules.ts";
 import { TOOL_VERSION, CANON } from "../version.ts";
+import { loadCanon } from "../canon.ts";
 
 const DEFAULT_PROTOCOL = "2025-06-18";
 
 function canonText(): string {
-  return readFileSync(fileURLToPath(new URL("../../canon/specline-2.3.md", import.meta.url)), "utf8");
+  return loadCanon().text;
 }
 
 const TOOLS = [

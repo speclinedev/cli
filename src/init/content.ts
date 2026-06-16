@@ -141,6 +141,31 @@ export function docArchitecture(tier: number, decider: string): string {
   ].join("\n");
 }
 
+export function speclineYml(tier: number, decider: string): string {
+  return [
+    "# specline.yml — repo config: the pins and thresholds doctor reads.",
+    "# Scaffolded by `specline init` — edit freely; this is the source of truth.",
+    `canon: ${CANON}`,
+    `tier: ${tier}`,
+    `deciders: [${decider}]`,
+    "deputy: null",
+    "staleness:            # how long before an untouched build is presumed abandoned",
+    "  building: 30 days",
+    "  blocked:  14 days",
+    "focus_limit:          # decider WIP ceiling (B7)",
+    "  building: 3",
+    "  active:   6",
+    "coupling_ceiling: 50%        # spec + forced loads, as % of the weakest model's window (B2)",
+    "suggest_slicing_past: 6      # Behavior+Acceptance count that nudges to slice while size: small",
+    "review_rounds_before_human: 2  # outer-loop verifier↔implementer bounce budget",
+    "models:               # capability tier → real model",
+    "  light:    claude-haiku",
+    "  standard: claude-sonnet",
+    "  frontier: claude-opus",
+    "",
+  ].join("\n");
+}
+
 export function architectureMd(): string {
   return [
     "# Architecture",

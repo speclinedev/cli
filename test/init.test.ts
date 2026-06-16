@@ -25,9 +25,12 @@ test("generated files carry the header; scaffold starters do not", () => {
   for (const f of ["docs/specs/README.md", "docs/knowledge/README.md", "docs/archive/README.md", "docs/conventions/README.md", ".github/workflows/specline.yml"]) {
     assert.ok(isGenerated(readFileSync(join(t, f), "utf8")), `${f} should be generated`);
   }
-  for (const f of ["docs/conventions/doc-architecture.md", "docs/architecture.md", "docs/specs/.id-counter"]) {
+  for (const f of ["specline.yml", "docs/conventions/doc-architecture.md", "docs/architecture.md", "docs/specs/.id-counter"]) {
     assert.ok(!isGenerated(readFileSync(join(t, f), "utf8")), `${f} should be a scaffold starter`);
   }
+  // the scaffolded config is the pin doctor reads
+  assert.match(readFileSync(join(t, "specline.yml"), "utf8"), /^canon: 2\.4\.0-draft$/m);
+  assert.match(readFileSync(join(t, "specline.yml"), "utf8"), /^tier: 1$/m);
 });
 
 test("sync is deterministic and idempotent across repos", () => {

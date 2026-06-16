@@ -1,8 +1,9 @@
-# Self-dogfood: gate this repo's own docs/ on PRs with the local composite action.
+# Self-dogfood: gate this repo's own docs/ with the local composite action, and
+# run the engine + bundle-integrity tests on any source change.
 name: specline
 on:
   pull_request:
-    paths: ["docs/**"]
+    paths: ["docs/**", "src/**", "canon/**", "test/**", "scripts/**"]
 jobs:
   doctor:
     runs-on: ubuntu-latest
@@ -11,3 +12,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/*.test.ts
