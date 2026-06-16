@@ -14,7 +14,7 @@ import { loadCanon } from "../canon.ts";
 
 const USAGE = `specline — spec-driven development tooling
 
-  specline doctor [PATH] [--mode author|gate] [--format json|human]
+  specline check  [PATH] [--mode author|gate] [--format json|human]
                          [--changed <file>...] [--now <iso-date>] [--tier 0|1|2]
   specline init   [PATH] [--tier 0|1|2] [--decider <name>]
                          [--github-action | --no-github-action] [--check] [--yes]
@@ -22,7 +22,7 @@ const USAGE = `specline — spec-driven development tooling
   specline rules  [--format json|markdown]
   specline spec
 
-  doctor validates structure (read-only). init/sync write generated artifacts.
+  check validates a repo's structure (read-only). init/sync write generated artifacts.
 
 Exit: 0 = ok, 1 = errors / --check stale, 2 = usage error, 3 = internal error.`;
 
@@ -58,13 +58,13 @@ function parseArgs(argv: string[]): Args {
     process.stdout.write(`${USAGE}\n`);
     process.exit(0);
   }
-  if (sub === "doctor") a.command = "check";
+  if (sub === "check" || sub === "doctor") a.command = "check"; // `doctor` kept as a silent back-compat alias
   else if (sub === "rules") a.command = "rules";
   else if (sub === "spec") a.command = "spec";
   else if (sub === "init") a.command = "init";
   else if (sub === "sync") a.command = "sync";
-  else if (sub.startsWith("-")) fail(`the first argument must be a command (doctor, init, sync, rules, spec), not ${sub}`);
-  else fail(`unknown command "${sub}" — did you mean: specline doctor ${sub}`);
+  else if (sub.startsWith("-")) fail(`the first argument must be a command (check, init, sync, rules, spec), not ${sub}`);
+  else fail(`unknown command "${sub}" — did you mean: specline check ${sub}`);
 
   let sawPath = false;
   for (let i = 1; i < argv.length; i++) {
@@ -136,7 +136,7 @@ function printRules(format: Format): void {
     process.stdout.write(`${JSON.stringify({ tool_version: TOOL_VERSION, canon: CANON, rules: REGISTRY }, null, 2)}\n`);
     return;
   }
-  const lines = [`# doctor rules — catalog (tool ${TOOL_VERSION}, canon ${CANON})`, ""];
+  const lines = [`# specline rules — catalog (tool ${TOOL_VERSION}, canon ${CANON})`, ""];
   lines.push("| rule_id | severity | scope | tier | downgradable |");
   lines.push("|---|---|---|---|---|");
   for (const r of REGISTRY) {
@@ -149,7 +149,7 @@ const SEV_LABEL: Record<string, string> = { error: "ERROR ", warning: "WARN  ", 
 
 function renderHuman(report: Report, path: string): string {
   const out: string[] = [];
-  out.push(`doctor ${report.tool_version} · canon ${report.canon} · mode ${report.mode} · tier ${report.tier}`);
+  out.push(`specline ${report.tool_version} · canon ${report.canon} · mode ${report.mode} · tier ${report.tier}`);
   out.push(path);
   out.push("");
   if (report.findings.length === 0) {

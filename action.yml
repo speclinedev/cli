@@ -1,4 +1,4 @@
-name: "Specline doctor"
+name: "Specline"
 description: "Validate a Specline repo's docs/ structure on pull requests (gate mode). Blocks the merge on structural errors; posts findings as annotations."
 branding:
   icon: check-circle
@@ -15,7 +15,7 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: "22"
-    - name: Run doctor (gate mode)
+    - name: Run Specline (gate mode)
       shell: bash
       run: |
         base="${GITHUB_BASE_REF:-main}"

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// GitHub Action entrypoint. Runs doctor in gate mode against the consumer repo and
+// GitHub Action entrypoint. Runs Specline in gate mode against the consumer repo and
 // emits GitHub workflow commands (::error/::warning) so findings surface as PR
-// annotations, then exits with doctor's exit code so the check gates the merge.
+// annotations, then exits with specline's exit code so the check gates the merge.
 // It reuses the same engine as the CLI — no new validation logic here.
 
 import { run, exitCodeFor, type Mode } from "../engine/run.ts";
@@ -27,7 +27,7 @@ const report = run(path, { mode, changed, modified, now });
 
 for (const f of report.findings) {
   const cmd = f.severity === "error" ? "error" : f.severity === "warning" ? "warning" : "notice";
-  const props: string[] = [`title=${escProp(`doctor: ${f.rule_id}`)}`];
+  const props: string[] = [`title=${escProp(`specline: ${f.rule_id}`)}`];
   if (f.file) {
     props.unshift(`file=${escProp(f.file)}`);
     if (f.line !== null) props.push(`line=${f.line}`);
@@ -36,7 +36,7 @@ for (const f of report.findings) {
 }
 
 const s = report.summary;
-const summary = `specline doctor (${report.mode}, canon ${report.canon}): ${s.errors} error(s), ${s.warnings} warning(s), ${s.info} info`;
+const summary = `specline check (${report.mode}, canon ${report.canon}): ${s.errors} error(s), ${s.warnings} warning(s), ${s.info} info`;
 process.stdout.write(`\n${summary}\n`);
 
 // Append to the PR check summary when running in GitHub Actions.

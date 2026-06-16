@@ -1,5 +1,5 @@
 {
-  "name": "@specline/doctor",
+  "name": "@specline/cli",
   "version": "0.1.0",
   "description": "Deterministic structural validator for Specline repos.",
   "type": "module",

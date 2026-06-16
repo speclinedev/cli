@@ -52,7 +52,7 @@ A refinement at one seam — between *shaped* and *built/verified* — all
     `judgeable` partition, with its own bounce budget). The reviewer finally has a
     home without holding the inner loop.
 12. **One-Sitting is re-scoped** to the spec's *reviewability* (`appetite`), not the
-    build's size. **`size: small|large`** is the new build-size axis; doctor nudges
+    build's size. **`size: small|large`** is the new build-size axis; Specline nudges
     only on the *mismatch* (`size: small` over threshold), never on size itself.
 13. **The parent-map** (`type: parent`) — decomposition into buildable scopes plus a
     parent that is a *map, not a plan*. Not a "bet."
@@ -66,6 +66,10 @@ A refinement at one seam — between *shaped* and *built/verified* — all
 ---
 
 ## What this is
+
+You shape a feature with one agent, and a different agent builds it — fresh
+context, never in the room, unable to ask what you meant. So the spec has to carry
+the whole decision. That single constraint shapes everything below.
 
 Specline is a methodology for documenting product work so AI agents can build
 from it — used by one product owner directing many AI agents of varying skill
@@ -95,8 +99,8 @@ which it fails. A claim without a failure mode is marketing.
   breached — cycle time is gated by PO queue depth, which is why B7 exists.
 - **Parallel delivery with minimal coordination.** Mechanism: the relations
   graph plus deterministic ID allocation replace standups. Fails when:
-  cross-repo edges are involved (validated weakly — see Doctor) or the graph is
-  stale (doctor on main prevents this).
+  cross-repo edges are involved (validated weakly — see Specline) or the graph is
+  stale (Specline on main prevents this).
 - **Rework caught at the cheapest moment.** Mechanism: agent-loopable
   acceptance checks are executed inside the implementation PR (B5), not at a
   demo. Fails when: checks are written unfalsifiably — which is why
@@ -112,7 +116,7 @@ which it fails. A claim without a failure mode is marketing.
 - **Audit trail.** Mechanism: every shipped ID resolves to an archived spec
   (with its acceptance results) and a knowledge doc, traceable spec → ratifier →
   implementation PR → graduation. Fails when: archive integrity breaks — a
-  doctor error.
+  Specline error.
 
 What it does not claim: that structure substitutes for product judgment. The
 system concentrates judgment at two gates and automates everything between.
@@ -124,7 +128,7 @@ system concentrates judgment at two gates and automates everything between.
 Scrum rations human time (sprints). Shape Up rations risk (appetite, the
 six-week circuit breaker). Specline rations judgment, context, and
 verification. These seven rules are the system; everything after them is
-implementation. Each is either doctor-enforced or names its gate.
+implementation. Each is either Specline-enforced or names its gate.
 
 **1. The One-Sitting Rule.** A spec must be small enough that the product owner
 can read and judge the *contract* in a single review sitting. Human attention is
@@ -140,42 +144,48 @@ measured **once, at shaping time** — it is a structural property of the spec, 
 a runtime budget the agent spends down. With million-token context windows the
 binding constraint is no longer *fitting* the spec — it is **signal quality**:
 irrelevant forced loads measurably degrade a frontier model's output, not just its
-latency. Doctor computes the proxy (total size of `spec.md` + transitively forced
+latency. Specline computes the proxy (total size of `spec.md` + transitively forced
 loads) and warns on breach; read a breach as "this feature is too entangled," a
-design smell, not a loading problem — slice it or decouple it. *(Doctor: warn.)*
+design smell, not a loading problem — slice it or decouple it. *(Specline: warn.)*
 
 **3. The Human Gate.** Humans ratify and humans accept. Ratification is recorded
 — `ratified_by` + `ratified_at` in frontmatter, set by the named human's
 approving commit — so a rubber stamp at least has a name on it. Everything else
 is delegable to agents. A spec no human read before ratification did not need to
-exist. *(Doctor: `ratified` without `ratified_by` is an error. Whether the human
+exist. *(Specline: `ratified` without `ratified_by` is an error. Whether the human
 actually read it remains judgment — no system detects attention, only
 accountability.)*
 
 **4. Staleness.** `building` and `blocked` each carry a `stale_after` date — the
 point past which an untouched build is presumed abandoned, not the point it is
-discarded. Going stale **quarantines the spec**: doctor errors on that spec's own
+discarded. Going stale **quarantines the spec**: Specline errors on that spec's own
 PRs and warns repo-wide — it never blocks unrelated work. Exit from quarantine is an explicit
 reshape (re-ratification) or kill (archive with tombstone). Moving `stale_after`
 without a same-commit `ratified_at` update is an error: no silent extension.
 Staleness is the *time* trigger of build-loop escalation; its *progress* twin is
 `loop_budget` (see The build loop), which escalates on no convergence rather than
-on elapsed time. *(Doctor: enforced.)*
+on elapsed time. *(Specline: enforced.)*
 
-**5. Falsifiable or Draft.** Falsifiable means **settleable the same way twice**,
-in one of three forms: by a runnable **command** (`agent-loopable`), by a
-**fresh-context agent judging against a named spec section** (`judgeable`), or by
-the **decider in one sitting** (`human-gate`). A spec is not `ratified` until its
-acceptance checks meet one of these — and the agent-loopable subset is *actually
-executed* in the implementation PR, results linked, before graduation. The named
-section is `judgeable`'s falsifiability gate exactly as the backticked command is
-`agent-loopable`'s; a `judgeable` item that cites no section is not falsifiable.
-Acceptance checks are **partitioned by altitude** (see Spec body) so the build
-loop knows its own mechanical exit condition. "Improve the dashboard" cites no
-section and runs no command — it fails all three and stays draft forever.
-*(Doctor: graduation without a linked acceptance run is an error; a `ratified`
-spec whose acceptance checks are not partitioned, or a `judgeable` item with no
-section reference, is an error.)*
+**5. Falsifiable or Draft.** Falsifiable means **settleable the same way twice** —
+and the three altitudes are the **handoffs between who certifies *done***, not three
+flavors of test:
+
+- **provable** (`agent-loopable`) — the **implementer's** exit condition. The goal is
+  met, established by a runnable command where one fits, **or by the implementer's
+  grounded assessment** against the code and its own tool results (evidence, not
+  opinion). A runnable command is the strongest form, not the required form.
+- **judgeable** — the **reviewer's** gate. A fresh-context agent judges the
+  implementer's *interpretation* against a named spec section and the repo's
+  standards. The named section is its falsifiability gate.
+- **tasteable** (`human-gate`) — the **decider's** gate. Settled once, by a person.
+
+A spec is not `ratified` until its acceptance is partitioned this way. "Improve the
+dashboard" names nothing any of the three can settle — it stays draft forever.
+*(Specline, in the planning phase, checks the partition is present and that a
+`judgeable` item names a section. It does **not** — and cannot — check that the
+implementer's grounded assessment was sound, or that the reviewer was right. That
+judgment is the reviewer's, then the human's. Specline guarantees the spec is
+*answerable*; the actors answer it.)*
 
 **6. Intent Over Description.** Documentation records what code cannot say:
 goals, non-goals, rejected options, evidence, business rules, boundaries. Code
@@ -185,13 +195,13 @@ it, and **over-specified mechanics measurably degrade their output** — a spec
 that tells the model *how* rather than *what* and *why* is a defect, not merely
 noise. Strong models read code; what they cannot read is your mind. *(Gate:
 graduation review and spec-critic. Judgment-only; the spec-critic agent flags
-"this sentence prescribes mechanics" the way doctor flags an unfalsifiable
+"this sentence prescribes mechanics" the way Specline flags an unfalsifiable
 check.)*
 
 **7. The Decider Budget.** A named decider may have at most **3 specs in
 `building`** and **6 in active states** (`ratified|building|blocked`) at once,
 per-repo override allowed. Agent capacity is not the constraint; the decider's
-queue is. WIP limits on humans, not on machines. *(Doctor: enforced.)*
+queue is. WIP limits on humans, not on machines. *(Specline: enforced.)*
 
 ---
 
@@ -206,7 +216,7 @@ queue is. WIP limits on humans, not on machines. *(Doctor: enforced.)*
 | Agent-loopable acceptance execution | Implementer, in the implementation PR |
 | Verification against the spec (the `judgeable` partition, outer loop) | **Fresh-context verifier subagent**, not the implementer self-critiquing |
 | Graduation editing pass | Agent, triggered by PR |
-| Structure validation | `doctor`, in CI |
+| Structure validation | `Specline`, in CI |
 | Meaning validation (tense, scope, sizing, B6) | Human, at the two gates |
 
 The **verifier is a separate, fresh-context subagent**: in testing, fresh-context
@@ -242,7 +252,7 @@ docs/
 ├── archive/              # Terminal contracts. Permanent, read-only.
 │   └── NNNN-slug/        # Final spec.md (+ acceptance results link) of shipped,
 │                         #   killed, and bug specs
-└── relations-index.yml   # GENERATED by doctor --fix. Reverse edges. Never hand-edited.
+└── relations-index.yml   # GENERATED by Specline --fix. Reverse edges. Never hand-edited.
 ```
 
 The word "features" is retired (it meant four different things across four
@@ -266,18 +276,18 @@ These READMEs are **generated from this canon, never hand-edited** — the
 per-directory definitions in the layout above are their source. Each carries a
 header marking it a generated artifact (`<!-- generated · canon 2.4 · do not edit ·
 run: specline sync -->`), in the same class as `relations-index.yml`. `specline
-init` writes them when a repo adopts Specline; `specline sync` (or `doctor --fix`)
-regenerates them on a canon-version bump. Doctor checks **drift** — a README that
+init` writes them when a repo adopts Specline; `specline sync` (or `Specline --fix`)
+regenerates them on a canon-version bump. Specline checks **drift** — a README that
 no longer matches what the current canon would generate is a finding — but never
 writes them: generation is the writer's job, the drift check is the validator's.
 
 ### Configuration — `specline.yml`
 
 A repo's **tunables** — the numbers and names it calibrates to its own scale —
-live in `specline.yml` at repo root, read deterministically by doctor (which
+live in `specline.yml` at repo root, read deterministically by Specline (which
 previously regexed the tier out of a markdown table — fragile). It is the source
 of truth for pins and thresholds; `docs/conventions/doc-architecture.md` is
-demoted to optional prose/rationale. Absent → doctor falls back to canon defaults.
+demoted to optional prose/rationale. Absent → Specline falls back to canon defaults.
 
 ```yaml
 # specline.yml
@@ -291,8 +301,9 @@ staleness:            # the staleness windows (durations), per state
 focus_limit:          # decider WIP — the B7 ceiling (per decider)
   building: 3
   active:   6
-coupling_ceiling: 50%        # B2 — spec + forced loads, as % of the weakest model's window
-suggest_slicing_past: 6      # acceptance/Behavior count above which doctor nudges to slice (while size: small)
+coupling_ceiling: 50%        # B2 — spec + forced loads, as % of context_window
+context_window: 400000       # chars in the weakest in-use model's window (the coupling denominator)
+suggest_slicing_past: 6      # acceptance/Behavior count above which Specline nudges to slice (while size: small)
 review_rounds_before_human: 2  # outer-loop verifier↔implementer bounce budget
 models:               # capability tier → real model
   light:    claude-haiku
@@ -322,16 +333,16 @@ ID: the later merger takes a fresh number.)
 Allocating = increment the counter and create the folder **in the same commit**.
 Parallel worktrees that collide discover it at merge like any conflict; the rule
 is **later-merger renumbers** — mechanical before ratification, because nothing
-may reference an unratified ID. Doctor errors on any ID ≤ counter missing from
+may reference an unratified ID. Specline errors on any ID ≤ counter missing from
 `specs/`, `knowledge/`, and `archive/`, and on duplicates.
 
 **References cite IDs, never lifecycle-managed paths.** Write `spec 0007` or
 `0007-ranch-mgmt`. Resolution is `glob docs/{specs,knowledge,archive}/0007-*` —
 every allocated-and-ratified ID resolves *forever*, because terminal states land
-in `archive/`. Cross-repo references use `repo:NNNN-slug`; doctor validates
+in `archive/`. Cross-repo references use `repo:NNNN-slug`; Specline validates
 repo-local edges as errors and cross-repo edges as **warnings only**. Literal
 paths are legal only for non-lifecycle docs (`docs/technical/...`,
-`docs/decisions/...`) and doctor verifies them.
+`docs/decisions/...`) and Specline verifies them.
 
 ---
 
@@ -394,7 +405,7 @@ so they never conflict:
   with no green-checkpoint advance (catches thrashing, which can exhaust the budget
   long before the spec goes stale).
 `loop_budget` is the PO's autonomy grant, set at ratification like `blast_radius`.
-The orchestrator defines what a "cycle" is and enforces both; doctor only validates
+The orchestrator defines what a "cycle" is and enforces both; Specline only validates
 they are well-formed. Do not merge them — one measures time, the other progress.
 
 ### `spec.md` body
@@ -420,27 +431,24 @@ they are well-formed. Do not merge them — one measures time, the other progres
    pricing API cannot quote discontinued SKUs — render the no-quote state; do
    not synthesize a price."*
 7. **Critical files** — pointers into existing code, not restatements of it.
-8. **Acceptance checks** — falsifiable, **partitioned by altitude** (B5), and —
-   for the agent-loopable set — **executable**. The partition is named by *how
-   settleable* the claim is, not just by who verifies it:
-   - `agent-loopable` (**provable**) — settled by a runnable command, executable by
-     the implementer/verifier every iteration; this set **is the build loop's exit
-     condition** and is executed in the implementation PR (B5). Each **leads with a
-     runnable command** (in backticks) and its expected result, so the loop *runs*
-     the check rather than re-interpreting prose. *(e.g. `npm test -- trade-in` —
-     exits 0.)*
-   - `judgeable` *(new)* — settled by a **fresh-context agent judging against a
-     named spec section**, by no command. The section reference is mandatory: it is
-     this altitude's falsifiability gate. The **verifier** owns this partition in the
-     outer loop (see The build loop); it gates the hand-off to the human, never the
-     inner loop. *(e.g. "matches the empty-state behavior in §4.3" — verifier
-     confirms against that section.)*
-   - `human-gate` (**tasteable**) — verified once by a person at the acceptance gate
-     (taste, product-fit, anything no check can falsify); prose, not a command.
-   An undifferentiated list hides the loop's stop condition and smuggles a human
-   step into an autonomous run. The middle altitude introduces **bounded judgment**
-   into the loop on purpose: deterministic *inner* loop, bounded-judgment *outer*
-   loop, unbounded judgment at the human end — judgment is layered, not banished.
+8. **Acceptance checks** — falsifiable, **partitioned by altitude** (B5). The
+   partition names the **handoff** each check belongs to — who certifies it — not
+   how it happens to be verified:
+   - `agent-loopable` (**provable**) — the **implementer's** exit condition. The goal
+     is met, shown by a runnable command where one fits (`e.g. `npm test -- trade-in`
+     — exits 0`), **or by the implementer's grounded assessment** against the code and
+     its tool results. A command is the strongest evidence, not a requirement; what is
+     required is that the implementer can establish the goal is met before handing off.
+   - `judgeable` — the **reviewer's** gate. A fresh-context agent judges the
+     implementer's *interpretation* against a **named spec section** and the repo's
+     standards (`conventions/`, `technical/`) — including nuanced bars the goal
+     can't state, like performance and security. The named section is its
+     falsifiability gate. *(e.g. "matches the empty-state behavior in §4.3.")*
+   - `human-gate` (**tasteable**) — the **decider's** gate. Verified once, by a person
+     (taste, product-fit, anything no check or review can falsify).
+   The altitudes are layered judgment, on purpose: the implementer asserts done, the
+   reviewer independently checks the interpretation, the human accepts. Provable is
+   the implementer's word (grounded); judgeable is the check on it; tasteable is final.
 9. **Out of scope / deferred** — with IDs if already allocated.
 
 Write intent and rules richly; write mechanics sparsely (B6). The builder reads
@@ -461,7 +469,7 @@ Fixed sections, in order:
 ## Dead ends      — approaches tried and rejected, with the reason
 ```
 
-Doctor checks the **shape** (sections present and parseable), never the prose —
+Specline checks the **shape** (sections present and parseable), never the prose —
 content is judgment. *Last green checkpoint* and *Dead ends* are the load-bearing
 sections: they stop a fresh-context iteration from re-deriving history and
 re-walking abandoned paths.
@@ -474,15 +482,15 @@ resume point and skips dead ends without interpreting prose:
 - **Dead ends** — one entry per line: `<approach> — <why it failed>`.
 
 It stays **markdown** — one human-readable file, no second data format. The
-convention is enough for a tool to parse *and* a person to glance at; doctor checks
+convention is enough for a tool to parse *and* a person to glance at; Specline checks
 the entry shape, never the prose.
 
 ### `open-questions.md`
 
-Each entry is doctor-parsed and must carry: **who decides**, **the options**,
+Each entry is Specline-parsed and must carry: **who decides**, **the options**,
 **the default**, and **the deadline**. An entry with a stated default and a
 future deadline is **legal during `building`**: indecision becomes a logged
-choice with an override window, and agents keep moving. Doctor errors only on
+choice with an override window, and agents keep moving. Specline errors only on
 entries past deadline or missing a default. A spec cannot *ratify* with entries
 lacking deciders or defaults.
 
@@ -497,7 +505,7 @@ conflicts_with: []
 ```
 
 Forward edges only, authored. Reverse edges (`depended_on_by`) live in the
-generated `docs/relations-index.yml`, maintained by `doctor --fix`. Every edge
+generated `docs/relations-index.yml`, maintained by `Specline --fix`. Every edge
 carries a one-line *why* — the why is what lets an agent decide whether the
 related doc is worth the context it costs to load, and what the reviewer reads to compute
 blast radius.
@@ -521,7 +529,7 @@ high `blast_radius` + verifier) — correctly large, not ineligible.
   invariant(s), external dependencies, and an index of its child scopes (with
   status rollup — the parent ships when its scopes ship).
 - **The parent forbids:** Goal-as-single-check, Behavior, acceptance — any
-  mechanics. Its balloon-guard is symmetric to One-Sitting: **stay a map.** doctor
+  mechanics. Its balloon-guard is symmetric to One-Sitting: **stay a map.** Specline
   flags a parent that grows mechanics (`PARENT-HAS-MECHANICS` — "decompose into
   scopes") or a parent with no children (`PARENT-NO-SCOPES` — "misfiled scope").
 - **The loop targets the scopes, never the parent.** A shared external dependency
@@ -570,10 +578,12 @@ it needs to run *without a human in each turn*. Drawn as a circle:
 2. **Work toward the Goal.** The **Goal** is the loop's *target* — the one
    falsifiable outcome it converges toward. Intent is the *why* (for the human);
    the Goal is the *destination* (for the loop).
-3. **Test against the exit condition.** Run the **agent-loopable acceptance
-   checks** — each a runnable command. These, not the Goal, are the loop's
-   *mechanical* exit: the loop stops when they pass. The Goal is what they are
-   chosen to prove.
+3. **Establish the goal is met.** Work toward the Goal, then show it's met: run the
+   **provable** (`agent-loopable`) checks where they are commands, and otherwise
+   assess against the code and the session's tool results. The implementer's exit is
+   *the goal is met, grounded in evidence* — a runnable suite going green is the
+   strongest form of that evidence, not the only one. When the implementer judges the
+   goal met, it stops and hands to review.
 4. **Advance, or burn a cycle.** If an iteration moves a check from red to green,
    it records a new **Last green checkpoint** — that *is* a green-checkpoint
    advance. An iteration that makes no such advance spends one cycle of the
@@ -587,21 +597,25 @@ it needs to run *without a human in each turn*. Drawn as a circle:
    reasoning transcript (see Agent-execution notes).
 
 So the spec carries the loop's four inputs — **target** (Goal), **exit condition**
-(agent-loopable checks), **memory** (`status.md`), and **autonomy grant**
-(`loop_budget`, bounded in time by `stale_after`) — and the two gates bracket it.
-doctor validates those inputs are present and well-shaped; the **orchestrator**
-runs the loop and enforces the boundaries.
+(the implementer's grounded judgment that the goal is met, provable checks where
+they fit), **memory** (`status.md`), and **autonomy grant** (`loop_budget`, bounded
+in time by `stale_after`) — and the two gates bracket it. Specline's role here is
+**planning-phase only**: it checks the spec carries these inputs and is answerable.
+It does not run the loop, and it cannot judge whether the build is good — that's the
+reviewer, then the human.
 
 **Two loops, not one.** The build loop above is really an *inner* loop wrapped by
 an *outer* one:
-- **Inner loop** — implementer ↔ the **provable** (`agent-loopable`) checks.
-  Mechanical exit: the checks pass. Bounded by `loop_budget` / `stale_after`. The
-  verifier is correctly *absent* here.
-- **Outer loop** — the **fresh-context verifier** ↔ the implementer against the
-  **judgeable** partition. It has its own small **bounce budget**
-  (`review_rounds_before_human`); it gates the transition *to the human*, never the
-  inner loop. This is where the reviewer finally has a home: it preserves "the
-  reviewer does not hold the build loop" while restoring a real second gate.
+- **Inner loop** — the **implementer** ↔ the Goal. It works until it can establish
+  the goal is met — by a provable command where one fits, or by grounded assessment
+  against the code — bounded by `loop_budget` / `stale_after`. The reviewer is
+  correctly *absent* here; this is the implementer's own word, grounded in evidence.
+- **Outer loop** — when the implementer asserts done, a **fresh-context reviewer**
+  judges the **judgeable** partition: the implementer's *interpretation* against the
+  named spec sections and the repo's standards (`conventions/`, `technical/`),
+  including the nuanced bars — performance, security — the Goal can't state. Its own
+  **bounce budget** (`review_rounds_before_human`); it gates the transition *to the
+  human*, never the inner loop. This is the check on the implementer's self-assessment.
 
 Both loops and their budgets are **named** here for the runner contract; the
 orchestrator is external and pluggable, so the canon names them but does not
@@ -636,7 +650,7 @@ it would otherwise botch — *provided the build is short-horizon*. Long-horizon
 builds need a frontier implementer regardless of spec quality, because
 sustained autonomy is a capability, not a specification.
 
-**Cost estimation.** Doctor's coupling-ceiling proxy (B2) already computes the
+**Cost estimation.** Specline's coupling-ceiling proxy (B2) already computes the
 dominant input to build cost. Combined with the agent-loopable acceptance count
 and `blast_radius`, it yields a rough `expected_build_tokens`, which × the tier's
 price gives a pre-build cost estimate at ratify time. This is an instrument, not
@@ -704,7 +718,7 @@ The merged spec on main is canonical, always. Mid-build reshaping:
 3. `status: building` resumes. The implementation branch rebases on the amended
    contract.
 
-Re-ratification leaves a trace doctor can read: `ratified_at` newer than
+Re-ratification leaves a trace Specline can read: `ratified_at` newer than
 spec-body changes, or it didn't happen. Reshaping is a normal transition, not a
 failure.
 
@@ -722,7 +736,7 @@ at `docs/conventions/graduation.md` and:
    code already says.
 4. Folds in ADRs accepted during the build that changed behavior.
 5. Carries forward edges into the knowledge folder's `relations.md`; runs
-   `doctor --fix` to regenerate `relations-index.yml`.
+   `Specline --fix` to regenerate `relations-index.yml`.
 6. Deletes the spec folder (the contract now lives in `archive/`).
 
 The result must read shorter and more confident than the spec. The human
@@ -737,7 +751,7 @@ one-sitting question.
 **Kills (and abandonment)**: spec moves to `archive/` with `status: killed` and a
 one-line tombstone stating why (a deliberate kill, or "abandoned" for a draft
 dropped before ship). There is no bare-delete of an allocated spec — this is what
-makes every ID resolve forever. IDs stay burned; edges to a killed ID are doctor
+makes every ID resolve forever. IDs stay burned; edges to a killed ID are Specline
 *warnings*.
 
 ### Precedence
@@ -747,15 +761,15 @@ historical record and outranks nothing.
 
 ---
 
-## Enforcement: the doctor
+## Enforcement: the checks
 
 The schema stands on its own: an agent can operate Specline from this canon
-alone, and a PO can author conforming specs by hand. `doctor` adds **assurance,
+alone, and a PO can author conforming specs by hand. `Specline` adds **assurance,
 not validity** — and its highest-value job is not the merge gate but watching a
 spec stay in shape while a PO and an agent write it. It is deterministic — no
 model, no judgment — and is specced in `0001-doctor`.
 
-doctor serves two callers over one engine and one rule set, differing only in
+Specline serves two callers over one engine and one rule set, differing only in
 severity posture:
 
 - **author mode** — advisory and continuous, invoked by the planning agent
@@ -770,24 +784,25 @@ severity posture:
 **Quarantine semantics** (gate mode): spec-scoped violations error only on PRs
 touching that spec and warn repo-wide; repo-scoped violations error everywhere.
 
-**Self-describing.** doctor emits its own contract for agents: `doctor spec`
-prints the pinned canon (for prompt injection), and `doctor rules` prints the
+**Self-describing.** Specline emits its own contract for agents: `Specline spec`
+prints the pinned canon (for prompt injection), and `Specline rules` prints the
 rule catalog — every `rule_id`, its severity, and its quarantine scope — as JSON
-or markdown. An agent in author mode reads `doctor rules` to know exactly what it
+or markdown. An agent in author mode reads `Specline rules` to know exactly what it
 will be checked against *before* it writes, not after.
 
 **Version skew and unknown content.** The canon is versioned and will keep
-changing, so doctor's posture toward content it does not recognize is defined,
+changing, so Specline's posture toward content it does not recognize is defined,
 not incidental: an unknown frontmatter key or unknown body section is
 **preserved and warned**, never an error; a malformed *known* field
 (unparseable frontmatter, an `id` that mismatches its directory) is always an
 error; a missing *required* element is an error in gate mode and
 `distance_to_ratifiable` in author mode; a duplicated *required* section is an
 error. The rule is: **fail the wrong, tolerate the unfamiliar** — a spec authored
-against a newer canon must not hard-fail an older doctor over a key it simply has
+against a newer canon must not hard-fail an older Specline over a key it simply has
 not learned yet.
 
-**Amendment diff.** `doctor diff <before> <after>` classifies what changed
+**Amendment diff** *(planned — needs two file versions, so it sits at the diff/CI
+layer, not the working-tree engine).* `Specline diff <before> <after>` classifies what changed
 between two versions of a spec — substantive (Behavior, Business rules,
 Acceptance) vs. status-only — and flags a behavior change unaccompanied by a
 `ratified_at` bump. This is what makes the mid-build revision-rate instrument
@@ -800,31 +815,40 @@ Checks (v2.3 additions in **bold**):
 - ID integrity: unique across `specs/` + `knowledge/` + `archive/`; no ID ≤
   `.id-counter` unaccounted for.
 - `ratified|building` requires `ratified_by`/`ratified_at` (B3).
-- **`ratified` requires a `blast_radius` value and partitioned acceptance checks
-  (at least the `agent-loopable` set present and labeled).**
+- **`ratified` requires a `blast_radius` value (`RATIFIED-NO-BLAST-RADIUS`) and
+  partitioned acceptance checks — at least the `agent-loopable` set present and
+  labeled (`RATIFIED-ACCEPTANCE-UNPARTITIONED`).**
 - **A `judgeable` acceptance item cites a spec section to verify against
   (`JUDGEABLE-NO-SECTION`); else it is not falsifiable (B5).**
 - **`size: small` with measured size (acceptance/Behavior count) over
   `suggest_slicing_past` → warn (`SCOPE-EXCEEDS-SIZE`): slice it, or declare
-  `size: large` if it's atomic. doctor raises the question; the human answers.**
+  `size: large` if it's atomic. Specline raises the question; the human answers.**
 - **`type: parent` carrying Behavior/acceptance → error (`PARENT-HAS-MECHANICS`);
   `type: parent` listing no child scopes → error (`PARENT-NO-SCOPES`).**
 - **`status.md`, when present, conforms to the schema (required sections present
   and parseable). Shape only; never prose.**
 - **`target_model`/`blast_radius` values, if present, are from the allowed sets
-  and resolve against the repo's model-tier map.**
+  (`ENUM-INVALID`).** Resolving `target_model` against the repo's configured
+  `models` map is *(planned — only the fixed set is checked today).*
 - Every repo-local edge resolves at some lifecycle stage (error); cross-repo
   edges warn-only; edges to `killed` IDs warn.
-- `relations-index.yml` consistent with authored forward edges (`--fix`
-  regenerates).
-- `open-questions.md` entries parse; past-deadline entries error; `ratified` with
-  default-less entries errors.
-- `building|blocked` past `stale_after` → quarantine; `stale_after` changed
-  without same-commit `ratified_at` update → error (B4).
+- `relations-index.yml` consistent with authored forward edges; `Specline --fix`
+  regenerates it. *(planned — not yet enforced or generated.)*
+- `open-questions.md` entries parse (each a `##` heading carrying `decider:` /
+  `options:` / `default:` / `deadline:` lines); a `ratified|building` spec with an
+  entry missing a decider or default errors (`OPEN-QUESTION-INCOMPLETE`); a
+  `building|blocked` entry past its `deadline` errors (`OPEN-QUESTION-OVERDUE`).
+- `building|blocked` past `stale_after` → quarantine (`STALE-QUARANTINE`, tier 2,
+  B4). Moving `stale_after` without a same-commit `ratified_at` update is also an
+  error — *(planned; it needs commit history, so it lives at the diff/CI layer, not
+  the working-tree engine).*
 - Decider focus limit: over the configured `building`/`active` ceiling per decider
-  → error (B7).
-- Coupling-ceiling proxy vs. configured `coupling_ceiling` → warn (B2).
-- Graduation PR without linked acceptance-check results → error (B5).
+  → error (`DECIDER-OVER-BUDGET`, tier 2, B7).
+- Coupling-ceiling proxy (`spec.md` + transitively forced loads) vs.
+  `coupling_ceiling`% of `context_window` → warn (`COUPLING-CEILING`, tier 2, B2).
+- A shipped, archived spec must carry a linked `acceptance_results`
+  (`ARCHIVE-NO-ACCEPTANCE`, B5) — the structural proxy for "graduation ran the
+  acceptance checks."
 - Every relative path link under `docs/**` resolves.
 - No `status.md`, open questions, or acceptance checks in `knowledge/`;
   `archive/` is exempt and read-only.
@@ -832,8 +856,18 @@ Checks (v2.3 additions in **bold**):
   required section → error (version-skew posture above).**
 
 Judgment-only rules (one-sitting sizing, B6 compliance, tense, confidence,
-blast-radius *correctness*) are out of doctor's scope and live at the two human
+blast-radius *correctness*) are out of Specline's scope and live at the two human
 gates.
+
+**Enforcement status (honest).** Everything above without a *(planned)* tag is
+implemented and tested. The deliberate gaps, and *why* they're deferred: items
+needing **two file versions or commit history** — `Specline diff`, and the
+"`stale_after` moved without `ratified_at`" check — can't run in Specline's
+working-tree-only engine, so they belong at the diff/CI layer; `relations-index`
+generation + `--fix` and full `target_model`→`models` resolution are simply not
+built yet. Tier-2 governance (`STALE-QUARANTINE`, `DECIDER-OVER-BUDGET`,
+`COUPLING-CEILING`) only fires when a repo declares `tier: 2`. The canon describes
+the whole contract; this note is the line between what runs and what's promised.
 
 ---
 
@@ -844,12 +878,12 @@ never targets (Goodhart).
 
 - **Lead time** — `created` → `shipped`.
 - **Mid-build revision rate** — % of shipped specs whose ratified sections
-  changed between first ratification and archive (computed by `doctor diff`).
+  changed between first ratification and archive (computed by `Specline diff`).
   Expected band ~10–40%. Near zero → waterfall; far above → shaping too thin.
   Read it; don't chase it.
 - **Staleness outcomes** — breach count and the reshape/kill split.
 - **Graduation latency** — implementation merge → knowledge doc. Target: same PR.
-- **Doctor pass rate on main** — should be 100%.
+- **Specline pass rate on main** — should be 100%.
 - **Routing accuracy** *(new)* — predicted vs. actual build cost by tier, and the
   rate of `blast_radius` upgrades discovered mid-build. A persistent gap means
   the routing heuristic, not the spec, is wrong.
@@ -861,7 +895,7 @@ never targets (Goodhart).
 Tiered so the smallest viable adoption is one afternoon:
 
 - **Tier 0 — one spec.** `docs/specs/`, `.id-counter`, one spec folder. Run
-  doctor. Value: one validated, agent-buildable contract.
+  Specline. Value: one validated, agent-buildable contract.
 - **Tier 1 — the loop.** Ratification frontmatter, the two-PR pattern,
   graduation + `archive/`, `knowledge/`. Value: product memory and audit trail.
 - **Tier 2 — the full system.** Staleness windows, decider focus limit, relations
@@ -869,14 +903,14 @@ Tiered so the smallest viable adoption is one afternoon:
   inner/outer loops, instrumentation. Value:
   parallel agents of varying cost without coordination meetings.
 
-A repo states its tier in `docs/conventions/doc-architecture.md`; doctor checks
+A repo states its tier in `docs/conventions/doc-architecture.md`; Specline checks
 only the rules of the declared tier.
 
 ## When a rule is broken
 
 | Breach | Recovery |
 |---|---|
-| Doctor red on main | Fix-forward; structural reds are small. If recurring, amend the canon, don't route around it. |
+| Specline red on main | Fix-forward; structural reds are small. If recurring, amend the canon, don't route around it. |
 | Graduation skipped | Run the graduation prompt retroactively; the archive-integrity check finds the gap. |
 | Staleness quarantine | Decider chooses reshape or kill within one sitting. |
 | **`loop_budget` exhausted** | The build loop escalated without converging. The decider reads the `status.md` Dead ends, then reshapes the spec (clearer Goal / better-specified checks) or takes the build over by hand. |
@@ -892,14 +926,14 @@ only the rules of the declared tier.
 - Staleness defaults (proposed: `building` 30 days, `blocked` 14 — tied to sprint
   cadence; set in `specline.yml`).
 - Coupling-ceiling number (proposed: spec + forced loads ≤ 50% of the weakest
-  in-use model's window, by doctor's byte proxy).
+  in-use model's window, by Specline's byte proxy).
 - Decider focus-limit defaults (proposed: 3 building / 6 active).
 - `suggest_slicing_past` (proposed: 6) and `review_rounds_before_human` (proposed:
   2) defaults.
 - **`blast_radius` → effort/model mapping defaults, and the capability-tier
   vocabulary (`light|standard|frontier` vs. explicit model names).**
 - **Whether `target_model` is authored or always derived.**
-- `doctor` distribution and implementation language (tracked in `0001-doctor`).
+- `Specline` distribution and implementation language (tracked in `0001-doctor`).
 - Cross-repo edge validation.
 - **The orchestrator (build-loop runner) is external and pluggable.** Specline
   defines the *contract* the loop runs against — Goal, agent-loopable checks,

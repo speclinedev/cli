@@ -47,7 +47,7 @@ export const FOLDER_DOCS: Record<string, FolderDoc> = {
   conventions: {
     purpose: "standards & pins",
     whatsHere: "`doc-architecture.md` (the canon-version + tier pin + deciders), templates, and the model-tier map.",
-    howToWrite: "Authored by the repo owner. The pin is what doctor reads to know your canon version and tier.",
+    howToWrite: "Authored by the repo owner. The pin is what Specline reads to know your canon version and tier.",
     howToRead: "How this repo configures Specline.",
     notHere: "No feature work — that's `specs/`/`knowledge/`.",
   },
@@ -143,7 +143,7 @@ export function docArchitecture(tier: number, decider: string): string {
 
 export function speclineYml(tier: number, decider: string): string {
   return [
-    "# specline.yml — repo config: the pins and thresholds doctor reads.",
+    "# specline.yml — repo config: the pins and thresholds Specline reads.",
     "# Scaffolded by `specline init` — edit freely; this is the source of truth.",
     `canon: ${CANON}`,
     `tier: ${tier}`,
@@ -155,7 +155,8 @@ export function speclineYml(tier: number, decider: string): string {
     "focus_limit:          # decider WIP ceiling (B7)",
     "  building: 3",
     "  active:   6",
-    "coupling_ceiling: 50%        # spec + forced loads, as % of the weakest model's window (B2)",
+    "coupling_ceiling: 50%        # spec + forced loads, as % of context_window (B2)",
+    "context_window: 400000       # chars in the weakest in-use model's window (the coupling denominator)",
     "suggest_slicing_past: 6      # Behavior+Acceptance count that nudges to slice while size: small",
     "review_rounds_before_human: 2  # outer-loop verifier↔implementer bounce budget",
     "models:               # capability tier → real model",
@@ -187,7 +188,7 @@ on:
   pull_request:
     paths: ["docs/**"]
 jobs:
-  doctor:
+  specline:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

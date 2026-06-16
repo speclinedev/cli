@@ -1,0 +1,8 @@
+canon: 2.4.0-draft
+tier: 2
+deciders: [jonathan]
+focus_limit:
+  building: 1
+  active:   1
+coupling_ceiling: 50
+context_window: 200

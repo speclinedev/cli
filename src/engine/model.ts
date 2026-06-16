@@ -58,6 +58,7 @@ export interface SpecFolder {
   frontmatter: Frontmatter | null;
   statusContent: string | null;
   relationsContent: string | null;
+  openQuestionsContent: string | null;
 }
 
 export interface MdFile {
@@ -69,6 +70,14 @@ export interface MdFile {
 export interface RepoConfig {
   /** acceptance + Behavior item count above which SCOPE-EXCEEDS-SIZE nudges while size: small. */
   suggestSlicingPast: number;
+  /** B7 decider focus limit: max specs in `building`, and max in active states, per decider. */
+  focusLimitBuilding: number;
+  focusLimitActive: number;
+  /** B2 coupling ceiling: spec + forced loads must stay under this % of contextWindowChars. */
+  couplingCeilingPct: number;
+  contextWindowChars: number;
+  /** the capability tiers declared under `models:` (e.g. light/standard/frontier). */
+  modelTiers: string[];
 }
 
 export interface Repo {
@@ -140,6 +149,7 @@ function loadFolder(kind: SpecKind, abs: string, root: string): SpecFolder {
     frontmatter: specContent !== null ? parseFrontmatter(specContent) : null,
     statusContent: read("status.md"),
     relationsContent: read("relations.md"),
+    openQuestionsContent: read("open-questions.md"),
   };
 }
 
@@ -151,21 +161,60 @@ function readTier(docsDir: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+const CONFIG_DEFAULTS: RepoConfig = {
+  suggestSlicingPast: 6,
+  focusLimitBuilding: 3,
+  focusLimitActive: 6,
+  couplingCeilingPct: 50,
+  contextWindowChars: 400000,
+  modelTiers: [],
+};
+
+/** The indented child `key: value` map directly under a top-level `parent:` block.
+ *  A dedent (a non-indented, non-blank line) ends the block. Dependency-free —
+ *  parseFlatYaml is flat, and specline.yml's focus_limit/models blocks are nested. */
+function blockChildren(text: string, parent: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  let inBlock = false;
+  for (const raw of text.split(/\r?\n/)) {
+    if (!inBlock) {
+      if (new RegExp(`^${parent}:\\s*(#.*)?$`).test(raw)) inBlock = true;
+      continue;
+    }
+    if (raw.trim() === "") continue;
+    if (/^\S/.test(raw)) break; // dedent ends the block
+    const m = raw.match(/^\s+([A-Za-z0-9_]+):\s*(.*)$/);
+    if (m) out[m[1]!] = (m[2] ?? "").replace(/\s+#.*$/, "").trim();
+  }
+  return out;
+}
+
 /** Read `specline.yml` at repo root — the source of truth for pins and thresholds
- *  (doc-architecture.md is the demoted fallback). Only the top-level scalars doctor
- *  currently consumes are read; nested blocks (staleness, focus_limit, models) have
- *  no rule consuming them yet, so parsing them now would be scaffolding. */
+ *  (doc-architecture.md is the demoted fallback). */
 function readSpeclineConfig(root: string): { tier: number | null; config: RepoConfig } {
   const f = join(root, "specline.yml");
-  const fallback = { tier: null as number | null, config: { suggestSlicingPast: 6 } };
-  if (!existsSync(f)) return fallback;
+  if (!existsSync(f)) return { tier: null, config: { ...CONFIG_DEFAULTS } };
   const text = readFileSync(f, "utf8");
-  const tierM = text.match(/^tier:\s*(\d+)/m);
-  const sliceM = text.match(/^suggest_slicing_past:\s*(\d+)/m);
-  return {
-    tier: tierM ? Number(tierM[1]) : null,
-    config: { suggestSlicingPast: sliceM ? Number(sliceM[1]) : 6 },
+  const intOf = (re: RegExp, fallback: number): number => {
+    const m = text.match(re);
+    const n = m ? Number(m[1]) : NaN;
+    return Number.isFinite(n) ? n : fallback;
   };
+  const childInt = (block: Record<string, string>, key: string, fallback: number): number => {
+    const n = Number(block[key]);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const focus = blockChildren(text, "focus_limit");
+  const config: RepoConfig = {
+    suggestSlicingPast: intOf(/^suggest_slicing_past:\s*(\d+)/m, CONFIG_DEFAULTS.suggestSlicingPast),
+    focusLimitBuilding: childInt(focus, "building", CONFIG_DEFAULTS.focusLimitBuilding),
+    focusLimitActive: childInt(focus, "active", CONFIG_DEFAULTS.focusLimitActive),
+    couplingCeilingPct: intOf(/^coupling_ceiling:\s*(\d+)/m, CONFIG_DEFAULTS.couplingCeilingPct),
+    contextWindowChars: intOf(/^context_window:\s*(\d+)/m, CONFIG_DEFAULTS.contextWindowChars),
+    modelTiers: Object.keys(blockChildren(text, "models")),
+  };
+  const tierM = text.match(/^tier:\s*(\d+)/m);
+  return { tier: tierM ? Number(tierM[1]) : null, config };
 }
 
 function readCounter(specsDir: string): number | null {

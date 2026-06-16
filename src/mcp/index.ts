@@ -5,9 +5,9 @@
 // Zero dependencies: the protocol surface doctor needs is small.
 //
 // Tools:
-//   doctor_check  — validate a repo; returns the JSON report (the source of truth)
-//   doctor_spec   — the pinned canon, for injecting Specline into an agent's context
-//   doctor_rules  — the rule catalog the agent will be checked against
+//   specline_check  — validate a repo; returns the JSON report (the source of truth)
+//   specline_spec   — the pinned canon, for injecting Specline into an agent's context
+//   specline_rules  — the rule catalog the agent will be checked against
 
 import { run } from "../engine/run.ts";
 import { REGISTRY } from "../engine/rules.ts";
@@ -22,7 +22,7 @@ function canonText(): string {
 
 const TOOLS = [
   {
-    name: "doctor_check",
+    name: "specline_check",
     description:
       "Validate a Specline repo's structure. Returns the deterministic JSON report " +
       "(findings with rule_id, severity, scope, file, line, message, fix_hint). " +
@@ -41,13 +41,13 @@ const TOOLS = [
     },
   },
   {
-    name: "doctor_spec",
+    name: "specline_spec",
     description: "Return the pinned Specline canon (markdown). Inject this to make an agent aware of the methodology before it authors a spec.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "doctor_rules",
-    description: "Return the rule catalog doctor enforces: every rule_id with its severity, scope, tier, and downgradable flag.",
+    name: "specline_rules",
+    description: "Return the rule catalog Specline enforces: every rule_id with its severity, scope, tier, and downgradable flag.",
     inputSchema: { type: "object", properties: {} },
   },
 ];
@@ -71,7 +71,7 @@ function textResult(text: string, isError = false) {
 
 function callTool(name: string, args: Record<string, unknown>): unknown {
   switch (name) {
-    case "doctor_check": {
+    case "specline_check": {
       const path = typeof args.path === "string" ? args.path : ".";
       const report = run(path, {
         mode: args.mode === "author" ? "author" : "gate",
@@ -81,9 +81,9 @@ function callTool(name: string, args: Record<string, unknown>): unknown {
       });
       return textResult(JSON.stringify(report, null, 2));
     }
-    case "doctor_spec":
+    case "specline_spec":
       return textResult(canonText());
-    case "doctor_rules":
+    case "specline_rules":
       return textResult(JSON.stringify({ tool_version: TOOL_VERSION, canon: CANON, rules: REGISTRY }, null, 2));
     default:
       return textResult(`unknown tool: ${name}`, true);
@@ -105,7 +105,7 @@ function handle(req: Rpc): void {
           result: {
             protocolVersion: typeof requested === "string" ? requested : DEFAULT_PROTOCOL,
             capabilities: { tools: {} },
-            serverInfo: { name: "doctor", version: TOOL_VERSION },
+            serverInfo: { name: "specline", version: TOOL_VERSION },
           },
         });
         return;
@@ -127,7 +127,7 @@ function handle(req: Rpc): void {
     }
   } catch (err) {
     // Engine/internal failure becomes a tool error, not a crash.
-    send({ jsonrpc: "2.0", id, result: textResult(`doctor error: ${err instanceof Error ? err.message : String(err)}`, true) });
+    send({ jsonrpc: "2.0", id, result: textResult(`specline error: ${err instanceof Error ? err.message : String(err)}`, true) });
   }
 }
 

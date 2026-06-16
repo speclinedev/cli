@@ -28,13 +28,23 @@ export const REGISTRY: RuleMeta[] = [
   { rule_id: "ID-DUPLICATE", severity: "error", scope: "repo", tier: 1, downgradable: false },
   { rule_id: "ID-COUNTER-GAP", severity: "error", scope: "repo", tier: 1, downgradable: false },
   { rule_id: "GOAL-MISSING", severity: "warning", scope: "spec", tier: 1, downgradable: false },
-  { rule_id: "ACCEPTANCE-NOT-RUNNABLE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "LOOP-BUDGET-INVALID", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   // v2.4 cluster — warnings first, while the altitude/parent-map format settles.
   { rule_id: "JUDGEABLE-NO-SECTION", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "SCOPE-EXCEEDS-SIZE", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "PARENT-HAS-MECHANICS", severity: "warning", scope: "spec", tier: 1, downgradable: false },
   { rule_id: "PARENT-NO-SCOPES", severity: "warning", scope: "spec", tier: 1, downgradable: false },
+  // lifecycle completeness — required to ratify / graduate (downgradable ones become
+  // distance_to_ratifiable in author mode).
+  { rule_id: "RATIFIED-NO-BLAST-RADIUS", severity: "error", scope: "spec", tier: 1, downgradable: true },
+  { rule_id: "RATIFIED-ACCEPTANCE-UNPARTITIONED", severity: "error", scope: "spec", tier: 1, downgradable: true },
+  { rule_id: "ARCHIVE-NO-ACCEPTANCE", severity: "error", scope: "repo", tier: 1, downgradable: false },
+  { rule_id: "OPEN-QUESTION-INCOMPLETE", severity: "error", scope: "spec", tier: 1, downgradable: true },
+  { rule_id: "OPEN-QUESTION-OVERDUE", severity: "error", scope: "spec", tier: 1, downgradable: false },
+  // tier-2 governance — only enforced when a repo declares tier 2.
+  { rule_id: "STALE-QUARANTINE", severity: "error", scope: "spec", tier: 2, downgradable: false },
+  { rule_id: "DECIDER-OVER-BUDGET", severity: "error", scope: "repo", tier: 2, downgradable: false },
+  { rule_id: "COUPLING-CEILING", severity: "warning", scope: "spec", tier: 2, downgradable: false },
 ];
 
 export const REGISTRY_BY_ID: Map<string, RuleMeta> = new Map(REGISTRY.map((r) => [r.rule_id, r]));
@@ -155,7 +165,7 @@ const statusSchema: Rule = ({ repo }) => {
       if (matches.length === 0) {
         out.push({ rule_id: "STATUS-SCHEMA", file: `${f.rel}/status.md`, line: null, specDir: f.dirName,
           message: `status.md missing required section "${req}"`,
-          fix_hint: `add a "## ${req}" section (shape only; doctor never reads its prose)` });
+          fix_hint: `add a "## ${req}" section (shape only; Specline never reads its prose)` });
       } else if (matches.length > 1) {
         out.push({ rule_id: "STATUS-SCHEMA", file: `${f.rel}/status.md`, line: matches[1]!.line, specDir: f.dirName,
           message: `status.md has a duplicated required section "${req}"`,
@@ -246,24 +256,6 @@ const goalMissing: Rule = ({ repo }) => {
   return out;
 };
 
-const acceptanceNotRunnable: Rule = ({ repo }) => {
-  const out: RawFinding[] = [];
-  for (const f of repo.specs) {
-    if (f.specContent === null) continue;
-    const lines = f.specContent.split(/\r?\n/);
-    const heads = headings(f.specContent).filter((h) => h.level === 2);
-    const acc = heads.find((h) => h.title.toLowerCase().startsWith("acceptance"));
-    if (!acc) continue;
-    const next = heads.find((h) => h.line > acc.line);
-    const body = lines.slice(acc.line, next ? next.line - 1 : undefined).join("\n");
-    if (/agent-loopable/i.test(body) && !body.includes("`")) {
-      out.push({ rule_id: "ACCEPTANCE-NOT-RUNNABLE", file: `${f.rel}/spec.md`, line: acc.line, specDir: f.dirName,
-        message: "agent-loopable acceptance checks carry no runnable command — the loop must re-interpret prose",
-        fix_hint: "lead each agent-loopable check with a runnable command in backticks (e.g. `npm test`) and its expected result" });
-    }
-  }
-  return out;
-};
 
 // ── v2.4 cluster: altitude + parent-map (warn-only nudges) ───────────────────
 
@@ -352,6 +344,197 @@ const parentNoScopes: Rule = ({ repo }) => {
       out.push({ rule_id: "PARENT-NO-SCOPES", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
         message: `parent-map ${f.id} has no child scopes (nothing declares part_of: ${f.id}) — it is a misfiled scope`,
         fix_hint: "give the parent child scopes (each an ordinary spec with part_of: this id), or make this an ordinary scope (type: feature)" });
+    }
+  }
+  return out;
+};
+
+// ── lifecycle completeness + tier-2 governance ───────────────────────────────
+
+const RATIFIABLE = new Set(["ratified", "building"]);
+const ACTIVE_STATES = new Set(["ratified", "building", "blocked"]);
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const ratifiedNeedsBlastRadius: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.frontmatter === null || !f.frontmatter.ok) continue;
+    const status = fmString(f, "status");
+    if (status === null || !RATIFIABLE.has(status)) continue;
+    if (fmString(f, "blast_radius") === null) {
+      out.push({ rule_id: "RATIFIED-NO-BLAST-RADIUS", file: `${f.rel}/spec.md`, line: f.frontmatter.lineOf["status"] ?? 1, specDir: f.dirName,
+        message: `status "${status}" requires a blast_radius value (B5)`,
+        fix_hint: "declare blast_radius: low|medium|high — the ratification-time risk judgment that routes effort and model tier" });
+    }
+  }
+  return out;
+};
+
+const ratifiedNeedsPartition: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.specContent === null || f.frontmatter === null || !f.frontmatter.ok) continue;
+    const status = fmString(f, "status");
+    if (status === null || !RATIFIABLE.has(status)) continue;
+    const acc = sectionBody(f.specContent, "acceptance");
+    if (!/agent-loopable/i.test(acc)) {
+      out.push({ rule_id: "RATIFIED-ACCEPTANCE-UNPARTITIONED", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: `a ${status} spec has no agent-loopable acceptance checks — the build loop has no mechanical exit (B5)`,
+        fix_hint: "partition Acceptance checks; label the runnable set `agent-loopable` (each leads with a command in backticks)" });
+    }
+  }
+  return out;
+};
+
+const archiveNeedsAcceptance: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.archive) {
+    if (f.frontmatter === null || !f.frontmatter.ok) continue;
+    if (fmString(f, "status") !== "shipped" || fmString(f, "type") === "bug") continue;
+    if (fmString(f, "acceptance_results") === null) {
+      out.push({ rule_id: "ARCHIVE-NO-ACCEPTANCE", file: `${f.rel}/spec.md`, line: f.frontmatter.lineOf["status"] ?? 1, specDir: f.dirName,
+        message: `shipped spec ${f.id ?? f.dirName} was archived without a linked acceptance_results (B5)`,
+        fix_hint: "graduation executes the agent-loopable checks and links the run; add acceptance_results: <link> before archiving" });
+    }
+  }
+  return out;
+};
+
+interface OQEntry { title: string; line: number; hasDecider: boolean; hasDefault: boolean; deadline: string | null; }
+function openQuestionEntries(content: string): OQEntry[] {
+  const heads = headings(content).filter((h) => h.level === 2);
+  const lines = content.split(/\r?\n/);
+  return heads.map((h, i) => {
+    const next = heads[i + 1];
+    const body = lines.slice(h.line, next ? next.line - 1 : undefined).join("\n");
+    const deadline = body.match(/(?:^|\n)\s*deadline:\s*(\d{4}-\d{2}-\d{2})/i);
+    return {
+      title: h.title, line: h.line,
+      hasDecider: /(?:^|\n)\s*decider:\s*\S/i.test(body),
+      hasDefault: /(?:^|\n)\s*default:\s*\S/i.test(body),
+      deadline: deadline ? deadline[1]! : null,
+    };
+  });
+}
+
+const openQuestionIncomplete: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.openQuestionsContent === null || f.frontmatter === null || !f.frontmatter.ok) continue;
+    const status = fmString(f, "status");
+    if (status === null || !RATIFIABLE.has(status)) continue; // ratify-readiness only
+    for (const q of openQuestionEntries(f.openQuestionsContent)) {
+      if (!q.hasDecider || !q.hasDefault) {
+        out.push({ rule_id: "OPEN-QUESTION-INCOMPLETE", file: `${f.rel}/open-questions.md`, line: q.line, specDir: f.dirName,
+          message: `open question "${q.title}" lacks a ${!q.hasDecider ? "decider" : "default"} — a ${status} spec can't carry an undecidable question`,
+          fix_hint: "each entry needs a decider, options, a default, and a deadline; the default is what keeps the build moving" });
+      }
+    }
+  }
+  return out;
+};
+
+const openQuestionOverdue: Rule = ({ repo, now }) => {
+  if (now === null) return [];
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.openQuestionsContent === null || f.frontmatter === null || !f.frontmatter.ok) continue;
+    const status = fmString(f, "status");
+    if (status !== "building" && status !== "blocked") continue;
+    for (const q of openQuestionEntries(f.openQuestionsContent)) {
+      if (q.deadline !== null && q.deadline < now) {
+        out.push({ rule_id: "OPEN-QUESTION-OVERDUE", file: `${f.rel}/open-questions.md`, line: q.line, specDir: f.dirName,
+          message: `open question "${q.title}" is past its deadline ${q.deadline} (now ${now})`,
+          fix_hint: "decide it, or take the stated default and remove the entry; an overdue question is a stalled decision" });
+      }
+    }
+  }
+  return out;
+};
+
+const staleQuarantine: Rule = ({ repo, now }) => {
+  if (now === null) return [];
+  const out: RawFinding[] = [];
+  for (const f of repo.specs) {
+    if (f.frontmatter === null || !f.frontmatter.ok) continue;
+    const status = fmString(f, "status");
+    if (status !== "building" && status !== "blocked") continue;
+    const stale = fmString(f, "stale_after");
+    if (stale !== null && ISO_DATE.test(stale) && stale < now) {
+      out.push({ rule_id: "STALE-QUARANTINE", file: `${f.rel}/spec.md`, line: f.frontmatter.lineOf["stale_after"] ?? 1, specDir: f.dirName,
+        message: `${status} spec is past stale_after ${stale} (now ${now}) — quarantined (B4)`,
+        fix_hint: "reshape (re-ratify, which resets stale_after) or kill it; staleness hands an abandoned build back to a human" });
+    }
+  }
+  return out;
+};
+
+const deciderOverBudget: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  const building = new Map<string, number>();
+  const active = new Map<string, number>();
+  for (const f of repo.specs) {
+    if (f.frontmatter === null || !f.frontmatter.ok) continue;
+    const d = fmString(f, "decider");
+    const s = fmString(f, "status");
+    if (d === null || s === null) continue;
+    if (s === "building") building.set(d, (building.get(d) ?? 0) + 1);
+    if (ACTIVE_STATES.has(s)) active.set(d, (active.get(d) ?? 0) + 1);
+  }
+  const bMax = repo.config.focusLimitBuilding;
+  const aMax = repo.config.focusLimitActive;
+  for (const [d, n] of [...building.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (n > bMax) out.push({ rule_id: "DECIDER-OVER-BUDGET", file: null, line: null, specDir: null,
+      message: `decider ${d} has ${n} specs in building, over the focus limit of ${bMax} (B7)`,
+      fix_hint: "WIP limits apply to the human, not the machine; ship or park one before starting another" });
+  }
+  for (const [d, n] of [...active.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (n > aMax) out.push({ rule_id: "DECIDER-OVER-BUDGET", file: null, line: null, specDir: null,
+      message: `decider ${d} has ${n} active specs (ratified|building|blocked), over the focus limit of ${aMax} (B7)`,
+      fix_hint: "the decider's queue is the constraint, not agent capacity; close some before opening more" });
+  }
+  return out;
+};
+
+/** spec.md + relations.md of the spec and every spec transitively reachable via
+ *  depends_on / part_of — the "forced loads" the coupling-ceiling proxy measures. */
+function forcedLoadChars(repo: Repo, start: SpecFolder): number {
+  const byId = new Map<string, SpecFolder>();
+  for (const f of repo.allFolders) if (f.id !== null) byId.set(f.id, f);
+  const seen = new Set<string>();
+  const queue: SpecFolder[] = [start];
+  let total = 0;
+  while (queue.length > 0) {
+    const f = queue.shift()!;
+    if (f.id !== null) {
+      if (seen.has(f.id)) continue;
+      seen.add(f.id);
+    }
+    total += (f.specContent?.length ?? 0) + (f.relationsContent?.length ?? 0);
+    if (f.relationsContent === null) continue;
+    const parsed = parseFlatYaml(f.relationsContent);
+    for (const key of ["depends_on", "part_of"]) {
+      for (const edge of asEdges(parsed.data[key])) {
+        const m = edge.match(/^(\d{4})/);
+        const target = m ? byId.get(m[1]!) : undefined;
+        if (target !== undefined && (target.id === null || !seen.has(target.id))) queue.push(target);
+      }
+    }
+  }
+  return total;
+}
+
+const couplingCeiling: Rule = ({ repo }) => {
+  const out: RawFinding[] = [];
+  const budget = Math.floor((repo.config.contextWindowChars * repo.config.couplingCeilingPct) / 100);
+  if (budget <= 0) return out;
+  for (const f of repo.specs) {
+    if (f.specContent === null) continue;
+    const chars = forcedLoadChars(repo, f);
+    if (chars > budget) {
+      out.push({ rule_id: "COUPLING-CEILING", file: `${f.rel}/spec.md`, line: null, specDir: f.dirName,
+        message: `spec + forced loads is ~${chars} chars, over the coupling ceiling of ${budget} (${repo.config.couplingCeilingPct}% of ${repo.config.contextWindowChars}) (B2)`,
+        fix_hint: "too entangled — slice the feature or cut relations; if reading the spec already fills the window, the model has no room left to work" });
     }
   }
   return out;
@@ -487,11 +670,18 @@ export const RULES: Rule[] = [
   unknownFrontmatterKeys,
   unknownSections,
   goalMissing,
-  acceptanceNotRunnable,
   judgeableNoSection,
   scopeExceedsSize,
   parentHasMechanics,
   parentNoScopes,
+  ratifiedNeedsBlastRadius,
+  ratifiedNeedsPartition,
+  archiveNeedsAcceptance,
+  openQuestionIncomplete,
+  openQuestionOverdue,
+  staleQuarantine,
+  deciderOverBudget,
+  couplingCeiling,
   relationEdges,
   danglingLinks,
   knowledgeHasStatus,
